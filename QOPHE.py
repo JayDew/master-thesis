@@ -9,6 +9,9 @@ linear constraints.
 n, m, N = get_params()
 H, r, E, e = get_data()
 
+e = e.reshape(-1, 1)
+r = r.reshape(-1, 1)
+
 
 def g(mu):
     """
@@ -70,7 +73,7 @@ condition = True
 
 while condition:
     mu_old = mu_new
-    mu_new = np.vectorize(my_max)(mu_old + nu * triangle(mu_old))
+    mu_new = np.maximum(mu_old + nu * triangle(mu_old), np.zeros(n*N).reshape(-1,1))
     if np.linalg.norm(mu_new - mu_old) <= epsilon:
         condition = False
 else:

@@ -8,7 +8,7 @@ import paillier
 import numpy as np
 import time
 import os
-from load import f, save_intermediate_variables
+from load import  save_intermediate_variables
 
 try:
     import gmpy2

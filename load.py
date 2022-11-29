@@ -1,13 +1,13 @@
 import numpy as np
-
-from util import is_pos_def
+import paillier
 
 n = m = 5
 N = 7
+DEFAULT_KEYSIZE = 1024
 
 fileH = "Data/H" + str(n) + "_" + str(m) + "_" + str(N) + ".txt"
 H = np.loadtxt(fileH, delimiter=',')
-assert is_pos_def(H), "Check that H is positive definite"
+# assert is_pos_def(H), "Check that H is positive definite"
 
 fileF = "Data/F" + str(n) + "_" + str(m) + "_" + str(N) + ".txt"
 F = np.loadtxt(fileF, delimiter=',')
@@ -15,10 +15,23 @@ F = np.loadtxt(fileF, delimiter=',')
 filex0 = "Data/x0" + str(n) + "_" + str(m) + "_" + str(N) + ".txt"
 x0 = np.loadtxt(filex0, delimiter=',')
 
-r = (2 * np.matmul(x0, F)).reshape(-1, 1)
+r = (2 * np.matmul(x0, F))
 # Add constraints: E*U < e
 E = - np.eye(n * N, m * N)
-e = (np.ones(n * N) * 10 ** 0).reshape(-1, 1)  # basically remove all constraints
+e = (np.ones(n * N) * 10 ** 6)  # basically remove all constraints
+
+filepub = "Keys/pubkey" + str(DEFAULT_KEYSIZE) + ".txt"
+with open(filepub, 'r') as fin:
+    data = [line.split() for line in fin]
+Np = int(data[0][0])
+pubkey = paillier.PaillierPublicKey(n=Np)
+
+filepriv = "Keys/privkey" + str(DEFAULT_KEYSIZE) + ".txt"
+with open(filepriv, 'r') as fin:
+    data = [line.split() for line in fin]
+p = int(data[0][0])
+q = int(data[1][0])
+privkey = paillier.PaillierPrivateKey(pubkey, p, q)
 
 
 def f(u):
@@ -37,6 +50,10 @@ def get_params():
 
 def get_data():
     return H, r, E, e
+
+
+def get_keys():
+    return pubkey, privkey
 
 
 def save_intermediate_variables(u_opt, filename):

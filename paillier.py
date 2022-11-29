@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
-# Adapted from pyphe. Transform it to be a fixed-point library, no encoding
+# Adapted from pyphe. Transformed it to be a fixed-point library, no encoding
 #
 """Paillier encryption library for partially homomorphic encryption."""
 import random
 import hashlib
-import math
-import sys
 import numpy
+
 try:
     from collections.abc import Mapping
 except ImportError:
@@ -17,6 +16,7 @@ from gmpy2 import mpz
 
 try:
     import gmpy2
+
     HAVE_GMP = True
 except ImportError:
     HAVE_GMP = False
@@ -57,6 +57,7 @@ def generate_paillier_keypair(private_keyring=None, n_length=DEFAULT_KEYSIZE):
 
     return public_key, private_key
 
+
 class PaillierPublicKey(object):
     """Contains a public key and associated encryption methods.
 
@@ -72,6 +73,7 @@ class PaillierPublicKey(object):
         increased, if you are happy to redefine "safely" and lower the
         chance of detecting an integer overflow.
     """
+
     def __init__(self, n):
         self.g = n + 1
         self.n = n
@@ -109,7 +111,8 @@ class PaillierPublicKey(object):
         Raises:
           TypeError: if plaintext is not an int or mpz.
         """
-        if not isinstance(plaintext, int) and not isinstance(plaintext, type(mpz(1))) and not isinstance(plaintext, numpy.int64):
+        if not isinstance(plaintext, int) and not isinstance(plaintext, type(mpz(1))) and not isinstance(plaintext,
+                                                                                                         numpy.int64):
             raise TypeError('Expected int type plaintext but got: %s' %
                             type(plaintext))
 
@@ -125,7 +128,7 @@ class PaillierPublicKey(object):
 
         # r = r_value or self.get_random_lt_n()
         # obfuscator = powmod(r, self.n, self.nsquare)
-        r = r_value or powmod(self.get_random_lt_n(), self.n, self.nsquare) # Pass the precomputed obfuscator
+        r = r_value or powmod(self.get_random_lt_n(), self.n, self.nsquare)  # Pass the precomputed obfuscator
         obfuscator = r
 
         return (nude_ciphertext * obfuscator) % self.nsquare
@@ -134,7 +137,7 @@ class PaillierPublicKey(object):
         """Return a cryptographically random number less than :attr:`n`"""
         return random.SystemRandom().randrange(1, self.n)
 
-    def encrypt(self, value, r_value=None): ### Do raw_encrypt
+    def encrypt(self, value, r_value=None):  ### Do raw_encrypt
         """Encode and Paillier encrypt a real number *value*.
 
         Args:
@@ -183,20 +186,21 @@ class PaillierPrivateKey(object):
       hp (int): h(p) - see Paillier's paper.
       hq (int): h(q) - see Paillier's paper.
     """
+
     def __init__(self, public_key, p, q):
-        if not p*q == public_key.n:
+        if not p * q == public_key.n:
             raise ValueError('given public key does not match the given p and q.')
-        if p == q: #check that p and q are different, otherwise we can't compute p^-1 mod q
+        if p == q:  # check that p and q are different, otherwise we can't compute p^-1 mod q
             raise ValueError('p and q have to be different')
         self.public_key = public_key
-        if q < p: #ensure that p < q. 
+        if q < p:  # ensure that p < q.
             self.p = q
             self.q = p
         else:
             self.p = p
             self.q = q
         self.psquare = self.p * self.p
-        
+
         self.qsquare = self.q * self.q
         self.p_inverse = invert(self.p, self.q)
         self.hp = self.h_function(self.p, self.psquare);
@@ -226,10 +230,10 @@ class PaillierPrivateKey(object):
         p_minus_q = isqrt(p_plus_q * p_plus_q - public_key.n * 4)
         q = (p_plus_q - p_minus_q) // 2
         p = p_plus_q - q
-        if not p*q == public_key.n:
+        if not p * q == public_key.n:
             raise ValueError('given public key and totient do not match.')
         return PaillierPrivateKey(public_key, p, q)
-        
+
     def __repr__(self):
         pub_repr = repr(self.public_key)
         return "<PaillierPrivateKey for {}>".format(pub_repr)
@@ -280,29 +284,29 @@ class PaillierPrivateKey(object):
         Raises:
           TypeError: if ciphertext is not an int.
         """
-        if not isinstance(ciphertext, int) and not isinstance(ciphertext, type(mpz(1))) and not isinstance(scalar, numpy.int64):
+        if not isinstance(ciphertext, int) and not isinstance(ciphertext, type(mpz(1))) and not isinstance(scalar,
+                                                                                                           numpy.int64):
             raise TypeError('Expected ciphertext to be an int, not: %s' %
-                type(ciphertext))
+                            type(ciphertext))
 
-        decrypt_to_p = self.l_function(powmod(ciphertext, self.p-1, self.psquare), self.p) * self.hp % self.p
-        decrypt_to_q = self.l_function(powmod(ciphertext, self.q-1, self.qsquare), self.q) * self.hq % self.q
+        decrypt_to_p = self.l_function(powmod(ciphertext, self.p - 1, self.psquare), self.p) * self.hp % self.p
+        decrypt_to_q = self.l_function(powmod(ciphertext, self.q - 1, self.qsquare), self.q) * self.hq % self.q
         value = self.crt(decrypt_to_p, decrypt_to_q)
-        if value < self.n/3:
+        if value < self.n / 3:
             return value
         else:
             return value - self.n
-    
+
     def h_function(self, x, xsquare):
         """Computes the h-function as defined in Paillier's paper page 12, 
         'Decryption using Chinese-remaindering'.
         """
-        return invert(self.l_function(powmod(self.public_key.g, x - 1, xsquare),x), x)
-            
-    
+        return invert(self.l_function(powmod(self.public_key.g, x - 1, xsquare), x), x)
+
     def l_function(self, x, p):
         """Computes the L function as defined in Paillier's paper. That is: L(x,p) = (x-1)/p"""
         return (x - 1) // p
-    
+
     def crt(self, mp, mq):
         """The Chinese Remainder Theorem as needed for decryption. Returns the solution modulo n=pq.
         
@@ -319,6 +323,7 @@ class PaillierPrivateKey(object):
     def __hash__(self):
         return hash((self.p, self.q))
 
+
 class PaillierPrivateKeyring(Mapping):
     """Holds several private keys and can decrypt using any of them.
 
@@ -329,6 +334,7 @@ class PaillierPrivateKeyring(Mapping):
       private_keys (list of PaillierPrivateKey): an optional starting
         list of :class:`PaillierPrivateKey` instances.
     """
+
     def __init__(self, private_keys=None):
         if private_keys is None:
             private_keys = []
@@ -416,6 +422,7 @@ class EncryptedNumber(object):
       TypeError: if *ciphertext* is not an int, or if *public_key* is
         not a :class:`PaillierPublicKey`.
     """
+
     def __init__(self, public_key, ciphertext):
         self.public_key = public_key
         self.__ciphertext = ciphertext
@@ -598,9 +605,10 @@ class EncryptedNumber(object):
           ValueError: if *plaintext* is not between 0 and
             :attr:`PaillierPublicKey.n`.
         """
-        if not isinstance(plaintext, int) and not isinstance(plaintext, type(mpz(1))) and not isinstance(plaintext, numpy.int64):
+        if not isinstance(plaintext, int) and not isinstance(plaintext, type(mpz(1))) and not isinstance(plaintext,
+                                                                                                         numpy.int64):
             raise TypeError('Expected ciphertext to be int, not %s' %
-                type(plaintext))
+                            type(plaintext))
 
         if plaintext < 0 or plaintext >= self.public_key.n:
             raise ValueError('Scalar out of bounds: %i' % plaintext)
