@@ -181,8 +181,8 @@ def get_enc_data(received_dict, pubkey):
 def main():
     # Make sure the default parameters are the same as in client.py
     lf = DEFAULT_PRECISION
-    n = 5  # set the number of states
-    m = 5  # set the number of control inputs
+    n = 20  # set the number of states
+    m = 20  # set the number of control inputs
     N = 7  # set the horizon length
     T = 7  # set the number of time steps
     server = Server(n, m, N)

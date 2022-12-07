@@ -8,7 +8,7 @@ import paillier
 import numpy as np
 import time
 import os
-from load import  save_intermediate_variables
+from common import save_intermediate_variables, f as objective
 
 try:
     import gmpy2
@@ -267,10 +267,10 @@ def main():
                 sec[i] = time.time() - start
                 start = time.time()
 
-                # plot objective value
-                U_opt = np.asarray(u).flatten()
-                save_intermediate_variables(U_opt, filename='Alexandru')
-                #
+            # plot objective value
+            U_opt = np.asarray(u).flatten()
+            save_intermediate_variables(U_opt, filename='Alexandru')
+            print("Optimal value:", objective(U_opt))
 
             print("time:", sec)
             with open(os.path.abspath(str(DEFAULT_KEYSIZE) + '_' + str(lf) + '_results_CS' + '.txt'), 'a+') as f:

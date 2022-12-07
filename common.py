@@ -1,13 +1,22 @@
 import numpy as np
 import paillier
 
-n = m = 5
+n = m = 20
 N = 7
 DEFAULT_KEYSIZE = 1024
 
+
+def check_symmetric(a, rtol=1e-05, atol=1e-08):
+    return np.allclose(a, a.T, rtol=rtol, atol=atol)
+
+
+def is_pos_def(x):
+    return np.all(np.linalg.eigvals(x) > 0)
+
+
 fileH = "Data/H" + str(n) + "_" + str(m) + "_" + str(N) + ".txt"
 H = np.loadtxt(fileH, delimiter=',')
-# assert is_pos_def(H), "Check that H is positive definite"
+assert is_pos_def(H) and check_symmetric(H), 'H must be a positive semi-definite matrix'
 
 fileF = "Data/F" + str(n) + "_" + str(m) + "_" + str(N) + ".txt"
 F = np.loadtxt(fileF, delimiter=',')
@@ -66,8 +75,20 @@ def save_intermediate_variables(u_opt, filename):
         u_copy = u_opt.copy()
         for j in range(0, i):
             u_copy[j] = 0
-        for j in range(i_max, n * N - 1):
+        for j in range(i_max, n * N):
             u_copy[j] = 0
         intermediate_values[int(i / n)] = f(u_copy)
+    # save to file
+    np.save(f'Temp/{filename}_{n}_{m}_{N}_optimum_solution.npy', u_opt)
+    np.save(f'Temp/{filename}_{n}_{m}_{N}.npy', intermediate_values)
 
-    np.save(f'Temp/{filename}.npy', intermediate_values)
+
+def is_solution_feasible(x):
+    """
+    Check that the constraints are met.
+
+    Condition E*x < e should hold.
+    """
+    temp = np.matmul(E, x) < e
+    print("Number of constraints violations:", np.count_nonzero(temp == False))
+    return False if False in temp else True

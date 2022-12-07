@@ -1,13 +1,11 @@
-import numpy as np
-
-from load import get_params, get_data, get_keys, f, save_intermediate_variables
+from common import *
 from PaillierHomoVec import *
 
 """
 Securely solving quadratic optimization problem subject to linear constraints.
 
-minimize (1/2)x'Qx + r'x
-st       Ex < e
+minimize (1/2)x'Qx + c_A'x
+st       Ax < b_A
 """
 
 n, m, N = get_params()
@@ -38,6 +36,9 @@ def triangle(mu_enc):
 
 
 def mu_bar(mu_enc):
+    """
+    Projected gradient ascent using encrypted dual .
+    """
     return sum_encrypted_vectors(mu_enc, mult_vect_by_constant(triangle(mu_enc), fp(nu)))
 
 
@@ -48,41 +49,29 @@ def triangle_squared():
     return (-1) * np.matmul(np.matmul(A, np.linalg.inv(Q)), A.T)
 
 
-def my_max(z):
-    """
-    Ensures that elements of mu cannot be negative.
-    """
-    return max(0, z)
-
-
-def is_solution_feasible(x):
-    """
-    Check that the constraints are met.
-
-    Condition E*x < e should hold.
-    """
-    temp = np.matmul(A, x) < b_A
-    print("Number of constraints violations:", np.count_nonzero(temp == False))
-    return False if False in temp else True
-
-
-mu = np.random.sample(n * N)
+mu = np.zeros(n * N)
 nu = 0.1
-
 K = 3
 
+# iteratively update the dual variables
 for k in range(K):
     mu_enc = encrypt_vector(pubkey, fp_vector(mu))
-    mu_bar_ = mu_bar(mu_enc)
-    # TODO! include multiplicative binding here
-    decrypted = retrieve_fp_vector(
-        retrieve_fp_vector(retrieve_fp_vector(retrieve_fp_vector(decrypt_vector(privkey, mu_bar_)))))
-    mu_new = np.maximum(decrypted, np.zeros(n * N))
+    # Server securely computes gradient ascent
+    mu_bar_enc = mu_bar(mu_enc)
+    # Server sends mu_bar_ to the Client
+    # Client decrypts mu_bar_
+    mu_bar_dec = retrieve_fp_vector(
+        retrieve_fp_vector(retrieve_fp_vector(retrieve_fp_vector(decrypt_vector(privkey, mu_bar_enc)))))
+    # Client projects the dual variables
+    mu_new = np.maximum(mu_bar_dec, np.zeros(n * N))
+    # And sends it back to the server
     mu = mu_new
 
 U_opt = np.asarray(retrieve_fp_vector(retrieve_fp_vector(
     retrieve_fp_vector(decrypt_vector(privkey, complementary_slackness(encrypt_vector(pubkey, fp_vector(mu))))))))
 print("OPTIMAL VALUE:", f(U_opt))
+
+# assert is_solution_feasible(U_opt), "Make sure that our solution is feasible!"
 
 # Save intermediate values
 save_intermediate_variables(U_opt, filename="QOPHE_encrypted")

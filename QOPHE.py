@@ -1,5 +1,4 @@
-import numpy as np
-from load import get_params, get_data, f, save_intermediate_variables
+from common import *
 
 """
 Solving quadratic optimization problem subject to 
@@ -55,17 +54,6 @@ def my_max(z):
     return max(0, z)
 
 
-def is_solution_feasible(x):
-    """
-    Check that the constraints are met.
-
-    Condition E*x < e should hold.
-    """
-    temp = np.matmul(E, x) < e
-    print("Number of constraints violations:", np.count_nonzero(temp == False))
-    return False if False in temp else True
-
-
 mu_new = np.random.sample(n * N).reshape(-1, 1)
 nu = triangle_squared().max()
 epsilon = 10 ** (-6)
@@ -73,7 +61,7 @@ condition = True
 
 while condition:
     mu_old = mu_new
-    mu_new = np.maximum(mu_old + nu * triangle(mu_old), np.zeros(n*N).reshape(-1,1))
+    mu_new = np.maximum(mu_old + nu * triangle(mu_old), np.zeros(n * N).reshape(-1, 1))
     if np.linalg.norm(mu_new - mu_old) <= epsilon:
         condition = False
 else:
@@ -81,7 +69,7 @@ else:
 
 U_opt = complementary_slackness(mu_opt=mu_new)
 print("OPTIMAL VALUE:", f(U_opt))
-# assert is_solution_feasible(U_opt), "Make sure that our solution is feasible!"
+assert is_solution_feasible(U_opt), "Make sure that our solution is feasible!"
 
 # Save intermediate values
 save_intermediate_variables(U_opt, filename="QOPHE")
