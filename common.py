@@ -1,8 +1,7 @@
 import numpy as np
 import paillier
 
-n = m = 20
-N = 7
+n = m = 3
 DEFAULT_KEYSIZE = 1024
 
 
@@ -14,20 +13,18 @@ def is_pos_def(x):
     return np.all(np.linalg.eigvals(x) > 0)
 
 
-fileH = "Data/H" + str(n) + "_" + str(m) + "_" + str(N) + ".txt"
-H = np.loadtxt(fileH, delimiter=',')
-assert is_pos_def(H) and check_symmetric(H), 'H must be a positive semi-definite matrix'
+fileQ = "Data_2/Q" + str(n) + "_" + str(m) + ".txt"
+Q = np.loadtxt(fileQ, delimiter=',')
+assert is_pos_def(Q) and check_symmetric(Q), 'Q must be a positive semi-definite matrix'
 
-fileF = "Data/F" + str(n) + "_" + str(m) + "_" + str(N) + ".txt"
-F = np.loadtxt(fileF, delimiter=',')
+fileA = "Data_2/A" + str(n) + "_" + str(m) + ".txt"
+A = np.loadtxt(fileA, delimiter=',')
 
-filex0 = "Data/x0" + str(n) + "_" + str(m) + "_" + str(N) + ".txt"
-x0 = np.loadtxt(filex0, delimiter=',')
+fileb = "Data_2/b" + str(n) + "_" + str(m) + ".txt"
+b = np.loadtxt(fileb, delimiter=',')
 
-r = (2 * np.matmul(x0, F))
-# Add constraints: E*U < e
-E = - np.eye(n * N, m * N)
-e = (np.ones(n * N) * 10 ** 6)  # basically remove all constraints
+filec = "Data_2/c" + str(n) + "_" + str(m) + ".txt"
+c = np.loadtxt(filec, delimiter=',')
 
 filepub = "Keys/pubkey" + str(DEFAULT_KEYSIZE) + ".txt"
 with open(filepub, 'r') as fin:
@@ -50,15 +47,15 @@ def f(u):
 
     minimize (1/2)*u'*H*u + r'*u
     """
-    return 0.5 * np.matmul(u.T, np.matmul(H, u)) + np.matmul(r.T, u)
+    return 0.5 * np.matmul(u.T, np.matmul(Q, u)) + np.matmul(c.T, u)
 
 
 def get_params():
-    return n, m, N
+    return n, m
 
 
 def get_data():
-    return H, r, E, e
+    return Q, c, A, b
 
 
 def get_keys():
@@ -67,20 +64,12 @@ def get_keys():
 
 def save_intermediate_variables(u_opt, filename):
     """
-    Saves intermediate values in npy file.
+    Save results in npy file.
     """
-    intermediate_values = np.zeros(N)
-    for i in range(0, n * N - 1, +n):
-        i_max = i + n
-        u_copy = u_opt.copy()
-        for j in range(0, i):
-            u_copy[j] = 0
-        for j in range(i_max, n * N):
-            u_copy[j] = 0
-        intermediate_values[int(i / n)] = f(u_copy)
+    optimum_objective_value = f(u_opt)
     # save to file
-    np.save(f'Temp/{filename}_{n}_{m}_{N}_optimum_solution.npy', u_opt)
-    np.save(f'Temp/{filename}_{n}_{m}_{N}.npy', intermediate_values)
+    np.save(f'Temp/{filename}_{n}_{m}_optimum_solution.npy', u_opt)
+    np.save(f'Temp/{filename}_{n}_{m}.npy', optimum_objective_value)
 
 
 def is_solution_feasible(x):
@@ -89,6 +78,6 @@ def is_solution_feasible(x):
 
     Condition E*x < e should hold.
     """
-    temp = np.matmul(E, x) < e
+    temp = np.matmul(A, x) < b.reshape(-1, 1)
     print("Number of constraints violations:", np.count_nonzero(temp == False))
     return False if False in temp else True
