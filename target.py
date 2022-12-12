@@ -11,6 +11,8 @@ import time
 import random
 import os
 
+from common import save_intermediate_variables, f as objective
+
 # Attempted implementation of the paper from CDC 2016
 
 DEFAULT_KEYSIZE = 1024
@@ -162,7 +164,7 @@ def main():
 		start = time.time()
 	# Create a TCP/IP socket
 		sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		port = 10000
+		port = 10007
 
 		# Connect the socket to the port where the server is listening
 		localhost = [l for l in ([ip for ip in socket.gethostbyname_ex(socket.gethostname())[2] if not ip.startswith("127.")][:1], [[(s.connect(('8.8.8.8', 53)), s.getsockname()[0], s.close()) for s in [socket.socket(socket.AF_INET, socket.SOCK_DGRAM)]][0][1]]) if l][0][0]
@@ -200,11 +202,13 @@ def main():
 				# Receive x
 				data = json.loads(recv_size(sock))
 				x = get_enc_data(data,pubkey)
-				x = retrieve_fp_vector(decrypt_vector(privkey,x),2*(lf+sigma))
-				print(["%.8f"% i for i in x])
+				x = np.asarray(retrieve_fp_vector(decrypt_vector(privkey,x),2*(lf+sigma)))
 				end = time.time()
 				sec = end-start
-				print("%.2f" % sec)
+				save_intermediate_variables(np.asarray(list(map(lambda x: float(x), x))),sec,filename="alexandru")
+				print("SOLUTION:", ["%.8f"% i for i in x])
+				print("OBJ VALUE:", objective(x))
+				print("TIME:", "%.2f" % sec)
 				n = len(x)
 				sys.stdout.flush()
 				# with open(os.path.abspath('Results/delay_'+str(NETWORK_DELAY)+'_plot_'+str(DEFAULT_KEYSIZE)+'_'+str(DEFAULT_MSGSIZE)+'_results_'+str(K)+'_'+str(int(DEFAULT_STATISTICAL))+'.txt'),'a+') as f: f.write("%d, %d, %.2f, %.2f\n" % (n,m,sec,offline))
