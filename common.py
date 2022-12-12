@@ -62,13 +62,14 @@ def get_keys():
     return pubkey, privkey
 
 
-def save_intermediate_variables(u_opt, filename):
+def save_intermediate_variables(u_opt, time, filename):
     """
     Save results in npy file.
     """
     optimum_objective_value = f(u_opt)
     # save to file
     np.save(f'Temp/{filename}_{n}_{m}_optimum_solution.npy', u_opt)
+    np.save(f'Temp/{filename}_{n}_{m}_time.npy', time)
     np.save(f'Temp/{filename}_{n}_{m}.npy', optimum_objective_value)
 
 

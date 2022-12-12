@@ -1,4 +1,5 @@
-from common import get_params, get_data
+import time
+from common import get_params, get_data, save_intermediate_variables
 from dataclasses import dataclass
 import numpy as np
 from cvxopt import matrix
@@ -44,8 +45,8 @@ def solve_instance(instance: Psi):
 
 def keyGen(alpha=1000):
     """This algorithm randomly generates a key K with a random security parameter alpha"""
-    H = np.random.rand(n * N, m * N) * alpha
-    r = np.random.rand(n * N) * alpha
+    H = np.random.rand(n, m) * alpha
+    r = np.random.rand(n) * alpha
     return Key(H, r)
 
 
@@ -71,21 +72,25 @@ def probDec(k: Key, y: np.ndarray):
     return H @ y - r.reshape(-1, 1)
 
 
-n, m, N = get_params()
+n, m = get_params()
 Q, c, A, b = get_data()
 
-##### solve the problem in plaintext
 problem_plaintext = Psi(Q, c, A, b)
-optimal_solution = solve_instance(problem_plaintext)
-print("OPTIMAL VALUE ORIGINAL:", f(optimal_solution))
-##### solve the problem in encrypted form
 key = keyGen()
+##### solve the problem in encrypted form
+start = time.time()
 problem_encrypted = probEnc(key, problem_plaintext)
 optimal_solution_enc = solve_instance(problem_encrypted)
 optimal_solution_dec = probDec(key, optimal_solution_enc)
+end = time.time()
+sec = end - start
 print("OPTIMAL VALUE PRIVACY:", f(optimal_solution_dec))
-#### check that they are equal
-epsilon = 0.05
-assert np.abs(np.amin(optimal_solution - optimal_solution_dec)) < epsilon
-assert np.abs(np.amax(optimal_solution - optimal_solution_dec)) < epsilon
-print('Decryption is correct!')
+# #### check that they are equal
+# optimal_solution = solve_instance(problem_plaintext)
+# print("OPTIMAL VALUE ORIGINAL:", f(optimal_solution))
+# epsilon = 0.05
+# assert np.abs(np.amin(optimal_solution - optimal_solution_dec)) < epsilon
+# assert np.abs(np.amax(optimal_solution - optimal_solution_dec)) < epsilon
+# print('Decryption is correct!')
+
+save_intermediate_variables(optimal_solution_dec, sec, filename="wang")
