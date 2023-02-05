@@ -3,11 +3,13 @@ from Pyfhel import Pyfhel
 from scipy.optimize import linprog
 from functools import reduce
 
+from data import import_data
+
 np.random.seed(42)
 
 HE = Pyfhel()  # Creating empty Pyfhel object
 ckks_params = {
-    'scheme': 'CKKS',  # can also be 'ckks'
+    'scheme': 'CKKS',
     'n': 2 ** 14,  # Polynomial modulus degree
     'scale': 2 ** 30,  # All the encodings will use it for float->fixed point
     'qi_sizes': [60, 30, 30, 30, 60]  # Number of bits of each prime in the chain
@@ -49,23 +51,27 @@ def dot_m_encrypted_vectors(x, A):
     return [dot_sc_encrypted_vectors(x, vec) for vec in A]
 
 
-c = np.asarray([2, 2])
-A = np.asarray([[1, 1], [1, -1]])
-b = np.asarray([3., 0.])
+def inv(m):
+    a, b = m.shape
+    i = np.eye(a, a)
+    return np.linalg.lstsq(m, i)[0]
+
+
+n = 5
+c, A, b = import_data(n)
 
 sol = linprog(c, A_eq=A, b_eq=b)
-print('OPT:', sol['fun'], '---', sol['x'])
+opt = sol['fun']
+print('OPT:', opt, '---', sol['x'])
 
-###################################3
+###################################
 
-n = 2
-scaling_factor = 1
-step_size = 0.005
+step_size = 0.01
 
-P = np.eye(n) - A.T @ np.linalg.inv(A @ A.T) @ A
+P = np.eye(n) - A.T @ inv(A @ A.T) @ A
 Q = A.T @ np.linalg.inv(A @ A.T) @ b
 
-mu_enc = encrypt_vector(np.random.normal(0, 1, n))
+mu_enc = encrypt_vector(np.zeros(n))
 enc_c = encrypt_vector(c)
 enc_c_minus = encrypt_vector((step_size * (-c)))
 enc_b = encrypt_vector(b)
@@ -85,7 +91,7 @@ def gradient(x):
     return enc_c_minus
 
 
-K = 50
+K = 200
 for k in range(K):
     # server computes projected gradient descent
     u_enc = _proj(sum_encrypted_vectors(mu_enc, gradient(mu_enc)))
@@ -96,6 +102,10 @@ for k in range(K):
     # client encrypts result and sends back to server
     mu_enc = encrypt_vector(mu_new)
 
-# the client receives the final result
-mu_dec = decrypt_vector(mu_enc)
-print('OPT:', f'{objective(mu_dec):.3f}', '---', mu_dec)
+    # the client receives the final result
+    mu_dec = decrypt_vector(mu_enc)
+    opt_privacy = objective(mu_dec)
+    print(k, 'OPT:', f'{opt_privacy:.3f}', '---', mu_dec)
+
+eplison = 1.e-1
+assert np.isclose(opt_privacy, opt, eplison)
