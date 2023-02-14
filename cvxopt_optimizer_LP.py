@@ -3,9 +3,9 @@ from Pyfhel import Pyfhel
 from scipy.optimize import linprog
 from functools import reduce
 
-from data import import_data
+from graphGenerator import GraphGenerator
 
-np.random.seed(42)
+np.random.seed(420)
 
 HE = Pyfhel()  # Creating empty Pyfhel object
 ckks_params = {
@@ -57,9 +57,14 @@ def inv(m):
     return np.linalg.lstsq(m, i)[0]
 
 
-n = 5
-c, A, b = import_data(n)
+# generate random graph
+generator = GraphGenerator(N=3, p=1.0, s=0, t=2)
+generator.print_graph()
 
+e, c, A, b = generator.generate_random_graph()
+
+#################################
+# Exact solution using plaintext
 sol = linprog(c, A_eq=A, b_eq=b)
 opt = sol['fun']
 print('OPT:', opt, '---', sol['x'])
@@ -68,10 +73,10 @@ print('OPT:', opt, '---', sol['x'])
 
 step_size = 0.01
 
-P = np.eye(n) - A.T @ inv(A @ A.T) @ A
-Q = A.T @ np.linalg.inv(A @ A.T) @ b
+P = np.eye(e) - A.T @ inv(A @ A.T) @ A
+Q = A.T @ inv(A @ A.T) @ b
 
-mu_enc = encrypt_vector(np.zeros(n))
+mu_enc = encrypt_vector(np.random.normal(0, 1, e))
 enc_c = encrypt_vector(c)
 enc_c_minus = encrypt_vector((step_size * (-c)))
 enc_b = encrypt_vector(b)
@@ -91,21 +96,21 @@ def gradient(x):
     return enc_c_minus
 
 
-K = 200
+K = 50
 for k in range(K):
     # server computes projected gradient descent
     u_enc = _proj(sum_encrypted_vectors(mu_enc, gradient(mu_enc)))
     # server sends back result to client for comparison
     u_dec = decrypt_vector(u_enc)
     # clients locally ensures that values are positive
-    mu_new = np.maximum(np.zeros(n), u_dec)
+    mu_new = np.maximum(np.zeros(e), u_dec)
     # client encrypts result and sends back to server
     mu_enc = encrypt_vector(mu_new)
 
     # the client receives the final result
     mu_dec = decrypt_vector(mu_enc)
-    opt_privacy = objective(mu_dec)
-    print(k, 'OPT:', f'{opt_privacy:.3f}', '---', mu_dec)
+    opt_privacy = objective(np.rint(mu_dec))
+    print(k, 'OPT:', f'{opt_privacy:.3f}', '---', np.rint(mu_dec))
 
 eplison = 1.e-1
-assert np.isclose(opt_privacy, opt, eplison)
+assert np.isclose(np.rint(opt_privacy), opt, eplison)
