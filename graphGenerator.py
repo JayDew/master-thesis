@@ -16,15 +16,13 @@ FOLDER = 'img/'
 class GraphGenerator:
     N: int
     p: float
-    START_NODE: int
-    TERMINAL_NODE: int
     G: nx.Graph
 
-    def __init__(self, N: int, p: float, s: int, t: int):
+    def __init__(self, N: int, p: float):
         self.N = N
         self.p = p
-        self.START_NODE = s
-        self.TERMINAL_NODE = t
+        # self.START_NODE = s
+        # self.TERMINAL_NODE = t
         # generate a random graph of N nodes
         self.G = self.gnp_random_connected_graph()
         self.G = self.G.to_directed()
@@ -68,7 +66,7 @@ class GraphGenerator:
         edges = self.G.edges(data=True)
         return dict((x[:-1], x[-1]['weight']) for x in edges if 'weight' in x[-1])
 
-    def print_graph(self):
+    def save_to_csv(self, N, e, s, t, k, time, optimal):
         """
         Save graph before and after finding the shortest path.
 
@@ -76,7 +74,7 @@ class GraphGenerator:
         drawing-multiple-edges-between-two-nodes-with-networkx
         """
         # solve Dijksta on original graph
-        path = nx.dijkstra_path(self.G, self.START_NODE, self.TERMINAL_NODE)
+        path = nx.dijkstra_path(self.G, s, t)
         # Plot nodes
         pos = nx.nx_agraph.graphviz_layout(self.G)
         fig, ax = plt.subplots()
@@ -98,30 +96,25 @@ class GraphGenerator:
         my_nx.my_draw_networkx_edge_labels(self.G, pos, ax=ax, edge_labels=curved_edge_labels, rotate=False,
                                            rad=arc_rad)
         nx.draw_networkx_edge_labels(self.G, pos, ax=ax, edge_labels=straight_edge_labels, rotate=False)
-        fig.savefig(f'{FOLDER}{self.N}_{self.p}_{self.START_NODE}_{self.TERMINAL_NODE}_original.png',
+        fig.savefig(f'{FOLDER}{self.N}_{self.p}_{s}_{t}_original.png',
                     bbox_inches='tight', pad_inches=0)
         # Add the shortest path in red
         nx.draw_networkx_edges(self.G, pos, ax=ax, edgelist=curved_edges_red, connectionstyle=f'arc3, rad = {arc_rad}',
                                edge_color='r')
         nx.draw_networkx_edges(self.G, pos, ax=ax, edgelist=straight_edges_red, edge_color='r')
-        fig.savefig(f'{FOLDER}{self.N}_{self.p}_{self.START_NODE}_{self.TERMINAL_NODE}_color_.png', bbox_inches='tight',
+        fig.savefig(f'{FOLDER}{self.N}_{self.p}_{s}_{t}_color_.png', bbox_inches='tight',
                     pad_inches=0)
+        with open('res/results.csv', 'a') as the_file:
+            the_file.write(f'{N},{e},{s},{t},{k+1},{time},{optimal}\n')
 
     def get_A_matrix(self):
         matrix = nx.incidence_matrix(self.G, oriented=True)
         A = scipy.sparse.csr_matrix.toarray(matrix)
         return A
 
-    def get_b_vector(self):
-        b = np.zeros(self.N)
-        b[self.START_NODE] = 1
-        b[self.TERMINAL_NODE] = -1
-        return b
-
     def generate_random_graph(self):
         e = self.G.number_of_edges()
         c = np.asarray(list(self.get_weights().values()))
-        b = self.get_b_vector()
         # Their standard is the other way around.
         A = self.get_A_matrix() * (-1)
-        return e, c, A, b
+        return e, c, A
