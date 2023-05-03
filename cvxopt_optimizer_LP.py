@@ -36,10 +36,6 @@ def sum_encrypted_vectors(x, y):
     return [x[i] + y[i] for i in range(np.size(x))]
 
 
-def diff_encrypted_vectors(x, y):
-    return [x[i] - y[i] for i in range(len(x))]
-
-
 def mul_sc_encrypted_vectors(x, y):  # x is encrypted, y is plaintext
     return [y[i] * x[i] for i in range(len(x))]
 
@@ -56,6 +52,7 @@ def inv(m):
     a, b = m.shape
     i = np.eye(a, a)
     return np.linalg.lstsq(m, i)[0]
+    # return np.linalg.pinv(m)
 
 
 def get_b_vector(N, s, t):
@@ -66,10 +63,8 @@ def get_b_vector(N, s, t):
 
 
 # generate random graph
-Ns = [35]  # number of nodes
-p = 0.1 # probability of two edges being connected
-
-
+Ns = [3]  # number of nodes
+p = 0.1  # probability of two edges being connected
 
 for N in Ns:
     s = 0  # hardcoded starting node
@@ -77,7 +72,6 @@ for N in Ns:
     e, c, A = generator.generate_random_graph()
 
     for _ in range(5):  # repeat all experiments 5 times
-        works = False
         t = random.randint(1, N - 1)  # random terminal node
         b = get_b_vector(N, s, t)
         #################################
@@ -88,21 +82,22 @@ for N in Ns:
 
         ###################################
 
-        step_size = 0.01
+        step_size = 0.005
 
         P = np.eye(e) - A.T @ inv(A @ A.T) @ A
         Q = A.T @ inv(A @ A.T) @ b
 
-        mu_enc = encrypt_vector(np.ones(e) * 0.5)
-        enc_c = encrypt_vector(c)
-        enc_c_minus = encrypt_vector((step_size * (-c)))
-        enc_b = encrypt_vector(b)
-        enc_P = encrypt_matrix(P)
-        enc_Q = encrypt_vector(Q)
+        x0 = np.ones(e) * 0.5
+        x0_enc = encrypt_vector(x0)
+        c_enc = encrypt_vector(c)
+        c_minus_enc = encrypt_vector((step_size * (-c)))
+        b_enc = encrypt_vector(b)
+        P_enc = encrypt_matrix(P)
+        Q_enc = encrypt_vector(Q)
 
 
         def _proj(x):
-            return sum_encrypted_vectors(dot_m_encrypted_vectors(x, enc_P), enc_Q)
+            return sum_encrypted_vectors(dot_m_encrypted_vectors(x, P_enc), Q_enc)
 
 
         def objective(x):
@@ -110,44 +105,42 @@ for N in Ns:
 
 
         def gradient(x):
-            return enc_c_minus
+            return c_minus_enc
 
 
         start = time.time()
 
-        K = 100
+        K = 500
         for k in range(K):
             # server computes projected gradient descent
-            u_enc = _proj(sum_encrypted_vectors(mu_enc, gradient(mu_enc)))
+            u_enc = _proj(sum_encrypted_vectors(x0_enc, gradient(x0_enc)))
+            x0 = P @ (x0 - c * step_size) + Q
             # server sends back result to client for comparison
             u_dec = decrypt_vector(u_enc)
             # clients locally ensures that values are positive
-            mu_new = np.maximum(np.zeros(e), u_dec)
+            x0_new = np.maximum(np.zeros(e), u_dec)
+            x0 = np.maximum(np.zeros(e), x0)
             # client encrypts result and sends back to server
-            mu_enc = encrypt_vector(mu_new)
-
+            mu_enc = encrypt_vector(x0_new)
             # the client receives the final result
             mu_dec = decrypt_vector(mu_enc)
             opt_privacy = objective(np.rint(mu_dec))
             print(k, 'OPT:', f'{opt_privacy:.3f}', '---', np.rint(mu_dec))
 
-            # experiment - check number of iterations until convergence
+            # experiment 1 - check number of iterations until convergence
             if np.array_equal(np.rint(mu_dec), sol['x']):
                 print('optimal solution after ', {k}, 'iterations')
                 end = time.time()
-                generator.save_to_csv(N, e, s, t, k, end - start,1)
-                works = True
+                generator.save_to_csv(N, e, s, t, k, end - start, 1)
                 break
 
-        if not works:
-            eplison = 1.e-1
+        else:
             end = time.time()
             generator.save_to_csv(N, e, s, t, K, end - start, 0)
 
         # save for processing
         dic = {}
-        dic['pred'] = np.rint(decrypt_vector(mu_enc))
+        dic['pred'] = np.rint(decrypt_vector(x0_enc))
         dic['true'] = sol['x']
         FOLDER = 'res'
         np.savez(f'{FOLDER}/{N}_{s}_{t}.npz', **dic)
-
