@@ -6,6 +6,7 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy
+from networkx.classes.function import path_weight
 
 random.seed(42)
 
@@ -18,7 +19,7 @@ class GraphGenerator:
     p: float
     G: nx.Graph
 
-    def __init__(self, N: int, p: float):
+    def __init__(self, N: int, p: float = 0.1):
         self.N = N
         self.p = p
         # self.START_NODE = s
@@ -28,7 +29,7 @@ class GraphGenerator:
         self.G = self.G.to_directed()
         # add random weights to its edges
         for (u, v) in self.G.edges():
-            self.G.edges[u, v]['weight'] = random.randint(0, 10)
+            self.G.edges[u, v]['weight'] = random.randint(0, 100)
 
     def gnp_random_connected_graph(self):
         """
@@ -118,3 +119,16 @@ class GraphGenerator:
         # Their standard is the other way around.
         A = self.get_A_matrix() * (-1)
         return e, c, A
+
+    def get_longest_path(self):
+        longest_path = []
+        length_longest_path = -1
+        nodes = list(self.G.nodes)
+        for s in range(len(nodes)):
+            for t in range(len(nodes)):
+                path = nx.shortest_path(self.G, s, t, weight='weight')
+                path_length = len(path)
+                if path_length > length_longest_path:
+                    length_longest_path = path_length
+                    longest_path = path
+        return longest_path
