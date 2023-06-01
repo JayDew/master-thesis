@@ -18,6 +18,11 @@ accelerated_1 = [(8, 1), (30, 301), (48, 777), (72, 550), (90, 1279), (138, 1162
                  (1058, -1), (1154, -1), (1280, -1), (1412, -1), (1546, -1), (1684, -1), (1816, -1), (1954, -1),
                  (2024, -1), (2284, -1), (2316, -1)]
 
+proximal = [(8, 1), (30, 47), (48, 77), (72, 65), (90, 99), (138, 95), (142, 84), (242, 107), (248, -1), (354, 117),
+            (376, 257), (438, 141), (536, 302), (624, 183), (724, 377), (772, 145), (884, 175), (918, 318), (1058, 392),
+            (1154, 291), (1280, 378), (1412, 320), (1546, 272), (1684, 492), (1816, 362), (1954, 239), (2024, 382),
+            (2284, 304), (2316, 309)]
+
 # parse data
 edges_acc_2 = [x[0] for x in accelerated_2 if x[1] != -1]
 iterations_acc_2 = [x[1] for x in accelerated_2 if x[1] != -1]
@@ -35,17 +40,24 @@ edges_acc_1 = [x[0] for x in accelerated_1 if x[1] != -1]
 iterations_acc_1 = [x[1] for x in accelerated_1 if x[1] != -1]
 non_conv_acc_1 = [x[0] for x in accelerated_1 if x[1] == -1]
 
+edges_prox = [x[0] for x in proximal if x[1] != -1]
+iterations_prox = [x[1] for x in proximal if x[1] != -1]
+non_conv_prox = [x[0] for x in proximal if x[1] == -1]
+
 # plot the lines
-plt.plot(edges_acc_2, iterations_acc_2, linestyle='-', color='C0', label=r'$\beta$ = 2')
-plt.plot(edges_acc_1_7, iterations_acc_1_7, linestyle='-', color='C1', label=r'$\beta$ = 1.7')
-plt.plot(edges_acc_1_5, iterations_acc_1_5, linestyle='-', color='C2', label=r'$\beta$ = 1.5')
-plt.plot(edges_acc_1, iterations_acc_1, linestyle='-', color='C3', label=r'$\beta$ = 1')
+plt.plot(edges_acc_1, iterations_acc_1, linestyle='-', color='C3', label=r'PGD')
+plt.plot(edges_acc_1_5, iterations_acc_1_5, linestyle='-', color='C2', label=r'$aPGD \beta$ = 1.5')
+plt.plot(edges_acc_1_7, iterations_acc_1_7, linestyle='-', color='C1', label=r'$aPGD \beta$ = 1.7')
+plt.plot(edges_acc_2, iterations_acc_2, linestyle='-', color='C0', label=r'$aPGD \beta$ = 2')
+plt.plot(edges_prox, iterations_prox, linestyle='-', color='C4', label=r'prox. PGD')
 
 # show the final plot
 ax = plt.subplot(111)
 ax.set_xlabel('Number of edges')
-ax.set_ylabel('Iterations required for convergence')
-ax.set_title('')
+ax.set_ylabel('Number of iterations')
+ax.set_title('Iterations required for convergence')
 ax.legend()
 ax.grid('on')
+plt.xlim([-10, 2500])
+plt.ylim([-10, 1700])
 plt.show()
