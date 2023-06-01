@@ -19,8 +19,8 @@ def get_b_vector(N, s, t):
     return b
 
 
-# number of nodes - from 5 to 150 with increments of 5
-Ns = np.arange(5, 150, 5, dtype=int)
+# number of nodes - from 5 to 200 with increments of 5
+Ns = np.arange(5, 200, 5, dtype=int)
 
 K_longest_shortest_path = []
 
