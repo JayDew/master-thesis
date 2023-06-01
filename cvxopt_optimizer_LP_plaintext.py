@@ -63,7 +63,7 @@ for N in Ns:
 
     K = 2000
     for k in range(K):
-        x0_new = P @ (v - step_size * gradient(x0)) + Q
+        x0_new = P @ (v - step_size * gradient(v)) + Q
         x0_new = np.maximum(np.zeros(e), x0_new)
         v_new = x0 + beta * (x0_new - x0)
         x0 = x0_new
