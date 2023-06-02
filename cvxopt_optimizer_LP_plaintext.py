@@ -4,12 +4,9 @@ from graphGenerator import GraphGenerator
 
 np.random.seed(420)
 
-
-def inv(A, lamb=0.1):
-    # Tikhonov pseudo-inverse of A
-    return np.linalg.inv(A.T.dot(A) + lamb * np.eye(A.shape[1])).dot(A.T)
+def inv(A):
     # Moore-Penrose pseudo-inverse of A
-    # return np.linalg.pinv(A)
+    return np.linalg.pinv(A)
 
 
 def get_b_vector(N, s, t):
@@ -60,20 +57,20 @@ for N in Ns:
     v = x0
     beta = 2  # set beta = 1 for normal PGD
 
-
     K = 2000
     for k in range(K):
         x0_new = P @ (v - step_size * gradient(v)) + Q
         x0_new = np.maximum(np.zeros(e), x0_new)
         v_new = x0 + beta * (x0_new - x0)
-        x0 = x0_new
-        v = v_new
         # print(k, 'OPT:', f'{objective(np.rint(x0)):.3f}', '---', np.rint(x0))
 
         if np.array_equal(np.rint(x0), sol['x']):
             print(f'{e}:convergence after {k + 1} iterations')
             K_longest_shortest_path.append((e, k + 1))
             break
+        else:
+            x0 = x0_new
+            v = v_new
     else:
         print('convergence not reached!')
         K_longest_shortest_path.append((e, -1))
