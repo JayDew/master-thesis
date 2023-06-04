@@ -1,10 +1,12 @@
+import time
+
 import numpy as np
 from gmpy2 import mpz
 import paillier
 import gmpy2
 
 DEFAULT_KEYSIZE = 512
-DEFAULT_MSGSIZE = 128
+DEFAULT_MSGSIZE = 32
 DEFAULT_PRECISION = int(DEFAULT_MSGSIZE/2) # of fractional bits
 DEFAULT_FACTOR = 60
 DEFAULT_STATISTICAL = 40
@@ -97,11 +99,7 @@ from graphGenerator import GraphGenerator
 
 
 def inv(A, lamb=0.1):
-    # Tikhonov pseudo-inverse of A
-    return np.linalg.inv(A.T.dot(A) + lamb * np.eye(A.shape[1])).dot(A.T)
-    # Moore-Penrose pseudo-inverse of A
-    # return np.linalg.pinv(A)
-
+    return np.linalg.pinv(A)
 
 def get_b_vector(N, s, t):
     b = np.zeros(N)
@@ -112,7 +110,7 @@ def get_b_vector(N, s, t):
 
 # generate random graph
 # number of nodes - from 5 to 150 with increments of 5
-Ns = np.arange(5, 30, 5, dtype=int)
+Ns = np.arange(5, 50, 1, dtype=int)
 
 K_longest_shortest_path = []
 
@@ -158,28 +156,29 @@ for N in Ns:
     # projected-gradient method
     v = x0_enc
     beta = 2  # set beta = 1 for normal PGD
-
+    # start measuring execution time
+    start_time = time.time()
 
     K = 2000
     for k in range(K):
-        x0_enc_new = _proj(sum_encrypted_vectors(x0_enc, enc_c_minus))
+        x0_enc_new = _proj(sum_encrypted_vectors(v, enc_c_minus))
         x0_dec = np.maximum(np.zeros(e), retrieve_fp_vector(retrieve_fp_vector(decrypt_vector(privkey, x0_enc_new))))
         x0_enc_new = encrypt_vector(pubkey, fp_vector(x0_dec))
         v_new = x0_enc + np.asarray(diff_encrypted_vectors(x0_enc_new, x0_enc)) * beta
-        x0_enc = x0_enc_new
-        v = v_new
 
         x0_dec = np.asarray(list(map(lambda x: float(x), retrieve_fp_vector(decrypt_vector(privkey, x0_enc)))))
+        x0_new_dec = np.asarray(list(map(lambda x: float(x), retrieve_fp_vector(decrypt_vector(privkey, x0_enc_new)))))
         # print(k, 'OPT:', f'{objective(np.rint(x0_dec)):.3f}', '---', np.rint(x0_dec))
 
-        if np.sum(np.rint(x0_dec) == sol['x']) >= len(sol['x']) - 1:  # up to one edge wrong because of approximations
-        # if np.array_equal(np.rint(x0_dec), sol['x']):  # uncomment for exact solution
+        if np.allclose(x0_dec, x0_new_dec) and np.array_equal(np.rint(x0_new_dec), sol['x']): # convergence and correctness
             print(f'convergence after {k + 1} iterations')
-            K_longest_shortest_path.append((e, k + 1))
+            K_longest_shortest_path.append((e, k + 1, time.time() - start_time))
             break
+        else:
+            x0_enc = x0_enc_new
+            v = v_new
     else:
         print('convergence not reached!')
         K_longest_shortest_path.append((e, -1))
 
 print(K_longest_shortest_path)
-print()

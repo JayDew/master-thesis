@@ -6,7 +6,6 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy
-from networkx.classes.function import path_weight
 
 random.seed(42)
 
@@ -67,7 +66,7 @@ class GraphGenerator:
         edges = self.G.edges(data=True)
         return dict((x[:-1], x[-1]['weight']) for x in edges if 'weight' in x[-1])
 
-    def save_to_csv(self, N, e, s, t, k, time, optimal):
+    def save_graph_image(self, s, t):
         """
         Save graph before and after finding the shortest path.
 
@@ -97,16 +96,14 @@ class GraphGenerator:
         my_nx.my_draw_networkx_edge_labels(self.G, pos, ax=ax, edge_labels=curved_edge_labels, rotate=False,
                                            rad=arc_rad)
         nx.draw_networkx_edge_labels(self.G, pos, ax=ax, edge_labels=straight_edge_labels, rotate=False)
-        fig.savefig(f'{FOLDER}{self.N}_{self.p}_{s}_{t}_original.png',
+        fig.savefig(f'{FOLDER}{self.N}_{s}_{t}_original.png',
                     bbox_inches='tight', pad_inches=0)
         # Add the shortest path in red
         nx.draw_networkx_edges(self.G, pos, ax=ax, edgelist=curved_edges_red, connectionstyle=f'arc3, rad = {arc_rad}',
                                edge_color='r')
         nx.draw_networkx_edges(self.G, pos, ax=ax, edgelist=straight_edges_red, edge_color='r')
-        fig.savefig(f'{FOLDER}{self.N}_{self.p}_{s}_{t}_color_.png', bbox_inches='tight',
+        fig.savefig(f'{FOLDER}{self.N}_{s}_{t}_color_.png', bbox_inches='tight',
                     pad_inches=0)
-        with open('res/results.csv', 'a') as the_file:
-            the_file.write(f'{N},{e},{s},{t},{k+1},{time},{optimal}\n')
 
     def get_A_matrix(self):
         matrix = nx.incidence_matrix(self.G, oriented=True)
