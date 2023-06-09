@@ -1,8 +1,9 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 
-df = pd.read_csv('foo.csv')
-df.columns =['n', 'e', 'k', 'time', 'conv']
+beta = 2
+df = pd.read_csv(f'foo_beta_{beta}.csv')
+df.columns = ['n', 'e', 'k', 'time', 'conv', 'correct']
 
 grouped = df.groupby(['n', 'e'], as_index=False).mean()
 ns = grouped['n'].unique()
@@ -18,7 +19,7 @@ for n in ns:
     _z = temp_df['k'].dropna().tolist()
     ax.plot3D(_x, _y, _z)
 
-ax.set_title('Number of iterations required for convergence')
+ax.set_title(fr'Number of iterations required for convergence')
 ax.elev = 0
 ax.azim = 0
 # Set axes label
@@ -27,3 +28,7 @@ ax.set_ylabel('Number of edges', labelpad=20)
 ax.set_zlabel('k', labelpad=20)
 plt.show()
 print()
+
+print(grouped['k'].mean())
+print(grouped['conv'].mean())
+print(grouped['correct'].mean())

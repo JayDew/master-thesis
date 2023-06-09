@@ -122,11 +122,10 @@ class GraphGenerator:
         for s in range(len(nodes)):
             for t in range(len(nodes)):
                 try:
-                    path = nx.shortest_path(self.G, s, t, weight='weight')
-                    path_length = len(path)
+                    path_length = nx.shortest_path_length(self.G, s, t, weight='weight')
                     if path_length > length_longest_path:
                         length_longest_path = path_length
-                        longest_path = path
+                        longest_path = nx.shortest_path(self.G, s, t, weight='weight')
                 except:
                     continue
         return longest_path

@@ -18,26 +18,25 @@ def get_b_vector(N, s, t):
 
 
 experiments = [
-    (6, [10, 11, 12, 13, 14, 15]),
-    (7, [10, 11, 12, 13, 14, 15]),
-    (8, [10, 11, 12, 13, 14, 15]),
-    (9, [10, 11, 12, 13, 14, 15]),
-    (10, [10, 11, 12, 13, 14, 15]),
-    (11, [10, 11, 12, 13, 14, 15]),
-    (12, [10, 11, 12, 13, 14, 15])
+    (2, [10, 11, 12, 13, 14, 15]),
+    # (8, [10, 11, 12, 13, 14, 15]),
+    # (9, [10, 11, 12, 13, 14, 15]),
+    # (10, [10, 11, 12, 13, 14, 15]),
+    # (11, [10, 11, 12, 13, 14, 15]),
+    # (12, [10, 11, 12, 13, 14, 15])
 ]
 
 for exp in experiments:
     n = exp[0]
     Es = exp[1]
     for e in Es:
-        results = np.asarray([np.NAN] * 5)
+        results = np.asarray([np.NAN] * 6)
         for i in range(100):  # repeat each experiment 100 times
             # generate random graph
             generator = GraphGenerator(N=n, E=e, seed=i)
             e, c, A = generator.generate_random_graph()
-            c = c / np.linalg.norm(c) # normalize cost vector
-            longest_shortest_path = generator.get_longest_path()
+            c = c / np.linalg.norm(c) #normalize cost vector
+            longest_shortest_path = generator.get_longest_path() #get the longest shortest path
             s = longest_shortest_path[0]  # starting node
             t = longest_shortest_path[-1]  # terminal node
             b = get_b_vector(n, s, t)
@@ -73,7 +72,7 @@ for exp in experiments:
             convergence = []
             fucked_up = False
 
-            K = 500
+            K = 5000
             for k in range(K):
                 if fucked_up:
                     break
@@ -86,19 +85,22 @@ for exp in experiments:
 
                 if np.allclose(x0, x0_new):  # convergence
                     if not np.array_equal(np.rint(x0_new), sol['x']):  # correctness
-                        results = np.vstack((results, np.asarray([n, e, np.NAN, np.NAN, -1])))
+                        results = np.vstack((results, np.asarray([n, e, np.NAN, np.NAN, 1, 0])))
                         fucked_up = True
                         print('we fucked up!')
                         continue
                     print(f'convergence after {k + 1} iterations')
-                    results = np.vstack((results, np.asarray([n, e, k + 1, time.time() - start_time, 1])))
+                    results = np.vstack((results, np.asarray([n, e, k + 1, time.time() - start_time, 1, 1])))
                     break
                 else:
                     x0 = x0_new
                     v = v_new
             else:
                 print('convergence not reached!')
-                results = np.vstack((results, np.asarray([n, e, np.NAN, np.NAN, 0])))
+                if np.array_equal(np.rint(x0_new), sol['x']):  # correctness
+                    results = np.vstack((results, np.asarray([n, e, np.NAN, np.NAN, 0, 1])))
+                else:
+                    results = np.vstack((results, np.asarray([n, e, np.NAN, np.NAN, 0, 0])))
 
-        with open('foo.csv', 'a') as csvfile:
+        with open(f'foo_beta_{beta}.csv', 'a') as csvfile:
             np.savetxt(csvfile, results, delimiter=',', fmt='%s', comments='')
