@@ -19,7 +19,7 @@ def get_b_vector(N, s, t):
 
 # number of nodes - from 5 to 50 with increments of 1
 # Ns = np.arange(5, 50, 1, dtype=int)
-Ns = [20]
+Ns = [10]
 
 K_longest_shortest_path = []
 
@@ -32,12 +32,15 @@ for N in Ns:
     t = longest_shortest_path[-1]  # terminal node
     b = get_b_vector(N, s, t)
     # generator.save_graph_image(s, t)
+    # A = np.asarray([[1, 1], [-1, -1]])
+    # b = np.asarray([1, -1])
+    # c = np.asarray([1, 2])
+    # e = 2
     #################################
     # Exact solution using plaintext
     sol = linprog(c, A_eq=A, b_eq=b)
     opt = sol['fun']
-    # print('OPT:', opt, '---', sol['x'])
-
+    print('OPT:', opt, '---', sol['x'])
     ###################################
 
     step_size = 0.00007  # or 0.0001
@@ -74,7 +77,10 @@ for N in Ns:
         # convergence.append((objective(x0_new) - objective(sol["x"])) / objective(sol["x"]))
         # print(k, 'OPT:', f'{objective(np.rint(x0)):.3f}', '---', np.rint(x0))
 
-        if np.allclose(x0, x0_new) and np.array_equal(np.rint(x0_new), sol['x']): # convergence and correctness
+        if np.allclose(x0, x0_new): # convergence
+            if not np.array_equal(np.rint(x0_new), sol['x']): # correctness
+                print('WE FUCKED UP!!')
+                exit(0)
             print(f'{e}:convergence after {k + 1} iterations')
             K_longest_shortest_path.append((e, k + 1, time.time() - start_time))
             break
@@ -89,3 +95,5 @@ for N in Ns:
 
 print(K_longest_shortest_path)
 print(convergence)
+
+## TODO! investigate corectness what does it depend on ??

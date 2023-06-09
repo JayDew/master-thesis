@@ -8,8 +8,7 @@ import gmpy2
 DEFAULT_KEYSIZE = 512
 DEFAULT_MSGSIZE = 32
 DEFAULT_PRECISION = int(DEFAULT_MSGSIZE/2) # of fractional bits
-DEFAULT_FACTOR = 60
-DEFAULT_STATISTICAL = 40
+DEFAULT_FACTOR = 60 # 20 should work as well!
 
 np.random.seed(420)
 
@@ -150,7 +149,7 @@ for N in Ns:
 
 
     def gradient(x):
-        return c
+        return enc_c_minus
 
     # parameters for accelerated
     # projected-gradient method
@@ -161,7 +160,7 @@ for N in Ns:
 
     K = 2000
     for k in range(K):
-        x0_enc_new = _proj(sum_encrypted_vectors(v, enc_c_minus))
+        x0_enc_new = _proj(sum_encrypted_vectors(v, gradient(v)))
         x0_dec = np.maximum(np.zeros(e), retrieve_fp_vector(retrieve_fp_vector(decrypt_vector(privkey, x0_enc_new))))
         x0_enc_new = encrypt_vector(pubkey, fp_vector(x0_dec))
         v_new = x0_enc + np.asarray(diff_encrypted_vectors(x0_enc_new, x0_enc)) * beta
