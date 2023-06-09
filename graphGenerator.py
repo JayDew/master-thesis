@@ -7,10 +7,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy
 
-random.seed(42)
+#
 
 FOLDER = 'img/'
-
 
 @dataclass
 class GraphGenerator:
@@ -18,42 +17,41 @@ class GraphGenerator:
     p: float
     G: nx.Graph
 
-    def __init__(self, N: int, p: float = 0.1):
+    def __init__(self, N: int, E: int, rnd_range: int = 100, seed=42):
+        random.seed(seed)
         self.N = N
-        self.p = p
-        # self.START_NODE = s
-        # self.TERMINAL_NODE = t
-        # generate a random graph of N nodes
-        self.G = self.gnp_random_connected_graph()
-        self.G = self.G.to_directed()
+        self.E = E
+        # generate a random graph of N nodes and E edges
+        self.G = nx.gnm_random_graph(N, E, seed=seed, directed=True)
+        # self.G = self.G.to_directed()
         # add random weights to its edges
         for (u, v) in self.G.edges():
-            self.G.edges[u, v]['weight'] = random.randint(0, 100)
+            self.G.edges[u, v]['weight'] = random.randint(0, rnd_range)
 
-    def gnp_random_connected_graph(self):
-        """
-        Generates a random undirected graph, similarly to an Erdős-Rényi
-        graph, but enforcing that the resulting graph is conneted
-
-        From https://stackoverflow.com/questions/61958360/
-        how-to-create-random-graph-where-each-node-has-at-least-1-edge-using-networkx
-        """
-        edges = combinations(range(self.N), 2)
-        G = nx.Graph()
-        G.add_nodes_from(range(self.N))
-        if self.p <= 0:
-            return G
-        if self.p >= 1:
-            return nx.complete_graph(self.N, create_using=G)
-        for _, node_edges in groupby(edges, key=lambda x: x[0]):
-            node_edges = list(node_edges)
-            random_edge = random.choice(node_edges)
-            G.add_edge(*random_edge)
-            for e in node_edges:
-                if random.random() < self.p:
-                    G.add_edge(*e)
-        # G = nx.fast_gnp_random_graph(self.N, self.p, directed=True, seed=420)
-        return G
+    # def gnp_random_connected_graph(self):
+    #     """
+    #     Generates a random undirected graph, similarly to an Erdős-Rényi
+    #     graph, but enforcing that the resulting graph is conneted
+    #
+    #     From https://stackoverflow.com/questions/61958360/
+    #     how-to-create-random-graph-where-each-node-has-at-least-1-edge-using-networkx
+    #     """
+    #     edges = combinations(range(self.N), 2)
+    #     G = nx.Graph()
+    #     G.add_nodes_from(range(self.N))
+    #     if self.p <= 0:
+    #         return G
+    #     if self.p >= 1:
+    #         return nx.complete_graph(self.N, create_using=G)
+    #     for _, node_edges in groupby(edges, key=lambda x: x[0]):
+    #         node_edges = list(node_edges)
+    #         random_edge = random.choice(node_edges)
+    #         G.add_edge(*random_edge)
+    #         for e in node_edges:
+    #             if random.random() < self.p:
+    #                 G.add_edge(*e)
+    #     # G = nx.fast_gnp_random_graph(self.N, self.p, directed=True, seed=420)
+    #     return G
 
     def get_weights(self):
         """
@@ -123,9 +121,12 @@ class GraphGenerator:
         nodes = list(self.G.nodes)
         for s in range(len(nodes)):
             for t in range(len(nodes)):
-                path = nx.shortest_path(self.G, s, t, weight='weight')
-                path_length = len(path)
-                if path_length > length_longest_path:
-                    length_longest_path = path_length
-                    longest_path = path
+                try:
+                    path = nx.shortest_path(self.G, s, t, weight='weight')
+                    path_length = len(path)
+                    if path_length > length_longest_path:
+                        length_longest_path = path_length
+                        longest_path = path
+                except:
+                    continue
         return longest_path
