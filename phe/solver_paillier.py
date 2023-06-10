@@ -7,14 +7,15 @@ import gmpy2
 
 DEFAULT_KEYSIZE = 512
 DEFAULT_MSGSIZE = 32
-DEFAULT_PRECISION = int(DEFAULT_MSGSIZE/2) # of fractional bits
-DEFAULT_FACTOR = 60 # 20 should work as well!
+DEFAULT_PRECISION = int(DEFAULT_MSGSIZE / 2)  # of fractional bits
+DEFAULT_FACTOR = 60
 
 np.random.seed(420)
 
 
 def encrypt_vector(pubkey, x):
     return [pubkey.encrypt(y) for y in x]
+
 
 def encrypt_matrix(pubkey, x, coins=None):
     if (coins == None):
@@ -97,8 +98,9 @@ from scipy.optimize import linprog
 from util.graphGenerator import GraphGenerator
 
 
-def inv(A, lamb=0.1):
+def inv(A):
     return np.linalg.pinv(A)
+
 
 def get_b_vector(N, s, t):
     b = np.zeros(N)
@@ -107,76 +109,95 @@ def get_b_vector(N, s, t):
     return b
 
 
-# generate random graph
-# number of nodes - from 5 to 150 with increments of 5
-# Ns = np.arange(5, 50, 1, dtype=int)
+experiments = [
+    (5, [20]),
+    (8, [56]),
+    (10, [90]),
+    (15, [210]),
+    (20, [380])
+]
 
-K_longest_shortest_path = []
+for exp in experiments:
+    n = exp[0]
+    Es = exp[1]
+    for E in Es:
+        results = np.asarray([np.NAN] * 6)
+        for i in range(100):  # repeat each experiment 100 times
+            generator = GraphGenerator(N=n, E=E, seed=i)  # generate graph
+            e, c, A = generator.generate_random_graph()
+            c = c / np.linalg.norm(c)  # normalize cost vector
+            longest_shortest_path = generator.get_longest_path()
+            s = longest_shortest_path[0]
+            t = longest_shortest_path[-1]
+            b = get_b_vector(n, s, t)
+            #################################
+            # Exact solution using plaintext
+            sol = linprog(c, A_eq=A, b_eq=b)
+            opt = sol['fun']
+            print('OPT:', opt, '---', sol['x'])
+            ###################################
 
-for N in [5]:
-    generator = GraphGenerator(N=5, E=20)  # generate graph
-    e, c, A = generator.generate_random_graph()
-    longest_shortest_path = generator.get_longest_path()
-    s = longest_shortest_path[0]
-    t = longest_shortest_path[-1]
-
-    b = get_b_vector(N, s, t)
-    #################################
-    # Exact solution using plaintext
-    sol = linprog(c, A_eq=A, b_eq=b)
-    opt = sol['fun']
-    print('OPT:', opt, '---', sol['x'])
-
-    ###################################
-
-    step_size = 0.00007
-
-    enc_c_minus = encrypt_vector(pubkey, fp_vector(step_size * (-c)))
-    P = np.eye(e) - A.T @ inv(A @ A.T) @ A
-    Q = A.T @ inv(A @ A.T) @ b
-    Q_enc = encrypt_vector(pubkey, fp_vector(fp_vector(Q)))
-    x0 = np.ones(e) * 0.5
-    x0_enc = encrypt_vector(pubkey, fp_vector(x0))
-
-
-    def objective(x):
-        return c @ x
-
-
-    def _proj(x):
-        return sum_encrypted_vectors(dot_m_encrypted_vectors(x, fp_matrix(P)), Q_enc)
+            step_size = 0.1
+            enc_c_minus = encrypt_vector(pubkey, fp_vector(step_size * (-c)))
+            P = np.eye(e) - A.T @ inv(A @ A.T) @ A
+            Q = A.T @ inv(A @ A.T) @ b
+            Q_enc = encrypt_vector(pubkey, fp_vector(fp_vector(Q)))
+            x0 = np.ones(e) * 0.5
+            x0_enc = encrypt_vector(pubkey, fp_vector(x0))
 
 
-    def gradient(x):
-        return enc_c_minus
+            def objective(x):
+                return c @ x
 
-    # parameters for accelerated
-    # projected-gradient method
-    v = x0_enc
-    beta = 2  # set beta = 1 for normal PGD
-    # start measuring execution time
-    start_time = time.time()
 
-    K = 2000
-    for k in range(K):
-        x0_enc_new = _proj(sum_encrypted_vectors(v, gradient(v)))
-        x0_dec = np.maximum(np.zeros(e), retrieve_fp_vector(retrieve_fp_vector(decrypt_vector(privkey, x0_enc_new))))
-        x0_enc_new = encrypt_vector(pubkey, fp_vector(x0_dec))
-        v_new = x0_enc + np.asarray(diff_encrypted_vectors(x0_enc_new, x0_enc)) * beta
+            def _proj(x):
+                return sum_encrypted_vectors(dot_m_encrypted_vectors(x, fp_matrix(P)), Q_enc)
 
-        x0_dec = np.asarray(list(map(lambda x: float(x), retrieve_fp_vector(decrypt_vector(privkey, x0_enc)))))
-        x0_new_dec = np.asarray(list(map(lambda x: float(x), retrieve_fp_vector(decrypt_vector(privkey, x0_enc_new)))))
-        # print(k, 'OPT:', f'{objective(np.rint(x0_dec)):.3f}', '---', np.rint(x0_dec))
 
-        if np.allclose(x0_dec, x0_new_dec) and np.array_equal(np.rint(x0_new_dec), sol['x']): # convergence and correctness
-            print(f'convergence after {k + 1} iterations')
-            K_longest_shortest_path.append((e, k + 1, time.time() - start_time))
-            break
-        else:
-            x0_enc = x0_enc_new
-            v = v_new
-    else:
-        print('convergence not reached!')
-        K_longest_shortest_path.append((e, -1))
+            def gradient(x):
+                return enc_c_minus
 
-print(K_longest_shortest_path)
+
+            # parameters for accelerated
+            # projected-gradient method
+            y = x0_enc
+            # start measuring execution time
+            start_time = time.time()
+            fucked_up = False
+
+            K = 5000
+            for k in range(K):
+                if fucked_up:
+                    break
+                x0_enc_new = _proj(sum_encrypted_vectors(y, gradient(y)))
+                x0_dec = np.maximum(np.zeros(e),
+                                    retrieve_fp_vector(retrieve_fp_vector(decrypt_vector(privkey, x0_enc_new))))
+                x0_enc_new = encrypt_vector(pubkey, fp_vector(x0_dec))
+                y_new = x0_enc + np.asarray(diff_encrypted_vectors(x0_enc_new, x0_enc)) * 2 #TODO! change this to FISTA!
+
+                x0_dec = np.asarray(list(map(lambda x: float(x), retrieve_fp_vector(decrypt_vector(privkey, x0_enc)))))
+                x0_new_dec = np.asarray(
+                    list(map(lambda x: float(x), retrieve_fp_vector(decrypt_vector(privkey, x0_enc_new)))))
+                print(k, 'OPT:', f'{objective(np.rint(x0_dec)):.3f}', '---', np.rint(x0_dec))
+
+                if np.allclose(x0_dec, x0_new_dec):  # convergence
+                    if not np.array_equal(np.rint(x0_new_dec), sol['x']):  # convergence and correctness
+                        results = np.vstack((results, np.asarray([n, e, np.NAN, np.NAN, 1, 0])))
+                        fucked_up = True
+                        print('we fucked up!')
+                        continue
+                    print(f'convergence after {k + 1} iterations')
+                    results = np.vstack((results, np.asarray([n, e, k + 1, time.time() - start_time, 1, 1])))
+                    break
+                else:
+                    x0_enc = x0_enc_new
+                    y = y_new
+            else:
+                print('convergence not reached!')
+                if np.array_equal(np.rint(x0_new_dec), sol['x']):  # correctness
+                    results = np.vstack((results, np.asarray([n, e, np.NAN, np.NAN, 0, 1])))
+                else:
+                    results = np.vstack((results, np.asarray([n, e, np.NAN, np.NAN, 0, 0])))
+
+        with open(f'FISTA_paillier.csv', 'a') as csvfile:
+            np.savetxt(csvfile, results, delimiter=',', fmt='%s', comments='')
