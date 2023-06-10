@@ -18,28 +18,28 @@ def get_b_vector(N, s, t):
 
 
 experiments = [
-    (2, [10, 11, 12, 13, 14, 15]),
-    # (8, [10, 11, 12, 13, 14, 15]),
-    # (9, [10, 11, 12, 13, 14, 15]),
-    # (10, [10, 11, 12, 13, 14, 15]),
-    # (11, [10, 11, 12, 13, 14, 15]),
-    # (12, [10, 11, 12, 13, 14, 15])
+    (5, [20]),
+    (8, [56]),
+    (10, [90]),
+    (15, [210]),
+    (20, [380])
 ]
 
 for exp in experiments:
     n = exp[0]
     Es = exp[1]
-    for e in Es:
+    for E in Es:
         results = np.asarray([np.NAN] * 6)
         for i in range(100):  # repeat each experiment 100 times
             # generate random graph
-            generator = GraphGenerator(N=n, E=e, seed=i)
+            generator = GraphGenerator(N=n, E=E, seed=i)
             e, c, A = generator.generate_random_graph()
             c = c / np.linalg.norm(c) #normalize cost vector
             longest_shortest_path = generator.get_longest_path() #get the longest shortest path
             s = longest_shortest_path[0]  # starting node
             t = longest_shortest_path[-1]  # terminal node
             b = get_b_vector(n, s, t)
+            # generator.save_graph_image(s, t) # save png
             #################################
             # Exact solution using plaintext
             sol = linprog(c, A_eq=A, b_eq=b)

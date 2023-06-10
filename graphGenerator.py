@@ -1,7 +1,5 @@
 import random
 from dataclasses import dataclass
-from itertools import combinations, groupby
-
 import networkx as nx
 import matplotlib.pyplot as plt
 import numpy as np
@@ -22,8 +20,8 @@ class GraphGenerator:
         self.N = N
         self.E = E
         # generate a random graph of N nodes and E edges
-        self.G = nx.gnm_random_graph(N, E, seed=seed, directed=True)
-        # self.G = self.G.to_directed()
+        self.G = nx.dense_gnm_random_graph(N, E)
+        self.G = self.G.to_directed()
         # add random weights to its edges
         for (u, v) in self.G.edges():
             self.G.edges[u, v]['weight'] = random.randint(0, rnd_range)
