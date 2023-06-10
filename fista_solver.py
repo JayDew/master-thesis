@@ -96,5 +96,5 @@ for exp in experiments:
                 else:
                     results = np.vstack((results, np.asarray([n, e, np.NAN, np.NAN, 0, 0])))
 
-        with open(f'FISTA.csv', 'a') as csvfile:
+        with open(f'FISTA_plaintext.csv', 'a') as csvfile:
             np.savetxt(csvfile, results, delimiter=',', fmt='%s', comments='')
