@@ -11,7 +11,7 @@ try:
 except ImportError:
     Mapping = dict
 
-from util import invert, powmod, getprimeover, isqrt
+from util.util import invert, powmod, getprimeover, isqrt
 from gmpy2 import mpz
 
 try:

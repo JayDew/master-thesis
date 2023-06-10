@@ -4,7 +4,7 @@ from Pyfhel import Pyfhel
 from functools import reduce
 from gmpy2 import gmpy2, mpz
 from scipy.optimize import linprog
-from graphGenerator import GraphGenerator
+from util.util import GraphGenerator
 
 np.random.seed(420)
 

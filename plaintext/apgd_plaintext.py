@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.optimize import linprog
-from graphGenerator import GraphGenerator
+from util.graphGenerator import GraphGenerator
 import time
 
 np.random.seed(420)
@@ -62,20 +62,26 @@ for exp in experiments:
 
             # parameters for accelerated
             # projected-gradient method
-            y = x0
+            v = x0
+            beta = 2  # set beta = 1 for normal PGD
             # start measuring execution
             start_time = time.time()
 
-
+            temps = []
+            points = []
+            convergence = []
             fucked_up = False
 
             K = 5000
             for k in range(K):
                 if fucked_up:
                     break
-                x0_new = P @ (y - step_size * gradient(y)) + Q
+                temp = v - step_size * gradient(v)
+                x0_new = P @ (temp) + Q
                 x0_new = np.maximum(np.zeros(e), x0_new)
-                y_new = x0_new + (k-1)/(k+2) * (x0_new - x0)
+                v_new = x0 + beta * (x0_new - x0)
+                # convergence.append((objective(x0_new) - objective(sol["x"])) / objective(sol["x"]))
+                # print(k, 'OPT:', f'{objective(np.rint(x0)):.3f}', '---', np.rint(x0))
 
                 if np.allclose(x0, x0_new):  # convergence
                     if not np.array_equal(np.rint(x0_new), sol['x']):  # correctness
@@ -88,7 +94,7 @@ for exp in experiments:
                     break
                 else:
                     x0 = x0_new
-                    y = y_new
+                    v = v_new
             else:
                 print('convergence not reached!')
                 if np.array_equal(np.rint(x0_new), sol['x']):  # correctness
@@ -96,5 +102,5 @@ for exp in experiments:
                 else:
                     results = np.vstack((results, np.asarray([n, e, np.NAN, np.NAN, 0, 0])))
 
-        with open(f'FISTA.csv', 'a') as csvfile:
+        with open(f'apgd_beta_{beta}.csv', 'a') as csvfile:
             np.savetxt(csvfile, results, delimiter=',', fmt='%s', comments='')

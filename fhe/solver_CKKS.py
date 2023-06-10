@@ -3,7 +3,7 @@ from Pyfhel import Pyfhel
 from scipy.optimize import linprog
 from functools import reduce
 import time
-from graphGenerator import GraphGenerator
+from util.util import GraphGenerator
 
 np.random.seed(420)
 

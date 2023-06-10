@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.optimize import linprog
-from graphGenerator import GraphGenerator
+from util.graphGenerator import GraphGenerator
 import time
 
 np.random.seed(420)
@@ -19,10 +19,10 @@ def get_b_vector(N, s, t):
 
 experiments = [
     (5, [20]),
-    (8, [56]),
-    (10, [90]),
-    (15, [210]),
-    (20, [380])
+    # (8, [56]),
+    # (10, [90]),
+    # (15, [210]),
+    # (20, [380])
 ]
 
 for exp in experiments:

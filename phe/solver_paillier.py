@@ -2,7 +2,7 @@ import time
 
 import numpy as np
 from gmpy2 import mpz
-import paillier
+from phe import paillier
 import gmpy2
 
 DEFAULT_KEYSIZE = 512
@@ -80,13 +80,13 @@ def retrieve_fp_matrix(mat, prec=DEFAULT_PRECISION + DEFAULT_FACTOR):
     return [retrieve_fp_vector(x, prec) for x in mat]
 
 
-filepub = "Keys/pubkey" + str(DEFAULT_KEYSIZE) + ".txt"
+filepub = "../Keys/pubkey" + str(DEFAULT_KEYSIZE) + ".txt"
 with open(filepub, 'r') as fin:
     data = [line.split() for line in fin]
 Np = int(data[0][0])
 pubkey = paillier.PaillierPublicKey(n=Np)
 
-filepriv = "Keys/privkey" + str(DEFAULT_KEYSIZE) + ".txt"
+filepriv = "../Keys/privkey" + str(DEFAULT_KEYSIZE) + ".txt"
 with open(filepriv, 'r') as fin:
     data = [line.split() for line in fin]
 p = mpz(data[0][0])
@@ -94,7 +94,7 @@ q = mpz(data[1][0])
 privkey = paillier.PaillierPrivateKey(pubkey, p, q)
 
 from scipy.optimize import linprog
-from graphGenerator import GraphGenerator
+from util.graphGenerator import GraphGenerator
 
 
 def inv(A, lamb=0.1):
@@ -109,14 +109,13 @@ def get_b_vector(N, s, t):
 
 # generate random graph
 # number of nodes - from 5 to 150 with increments of 5
-Ns = np.arange(5, 50, 1, dtype=int)
+# Ns = np.arange(5, 50, 1, dtype=int)
 
 K_longest_shortest_path = []
 
-for N in Ns:
-    generator = GraphGenerator(N=N)  # generate graph
+for N in [5]:
+    generator = GraphGenerator(N=5, E=20)  # generate graph
     e, c, A = generator.generate_random_graph()
-
     longest_shortest_path = generator.get_longest_path()
     s = longest_shortest_path[0]
     t = longest_shortest_path[-1]
