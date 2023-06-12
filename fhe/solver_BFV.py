@@ -4,7 +4,7 @@ from Pyfhel import Pyfhel
 from functools import reduce
 from gmpy2 import gmpy2, mpz
 from scipy.optimize import linprog
-from util.util import GraphGenerator
+from util.graphGenerator import GraphGenerator
 
 np.random.seed(420)
 
@@ -81,78 +81,99 @@ def get_b_vector(N, s, t):
     b[t] = -1
     return b
 
-# number of nodes - from 5 to 50 with increments of 1
-Ns = np.arange(5, 50, 1, dtype=int)
-
-K_longest_shortest_path = []
-
-for N in Ns:
-    # generate random graph
-    generator = GraphGenerator(N=N)
-    e, c, A = generator.generate_random_graph()
-    longest_shortest_path = generator.get_longest_path()
-    s = longest_shortest_path[0]  # starting node
-    t = longest_shortest_path[-1]  # terminal node
-    b = get_b_vector(N, s, t)
-    # A = np.asarray([[1, 1], [-1, -1]])
-    # b = np.asarray([1, -1])
-    # c = np.asarray([1, 2])
-    # e = 2
-    #################################
-    # Exact solution using plaintext
-    sol = linprog(c, A_eq=A, b_eq=b)
-    opt = sol['fun']
-    print('OPT:', opt, '---', sol['x'])
-    ###################################
-
-    step_size = 0.00007
-
-    P = np.eye(e) - A.T @ inv(A @ A.T) @ A
-    Q = A.T @ inv(A @ A.T) @ b
-    x0_pt = np.ones(e) * 0.5
-
-    c_minus_enc = encrypt_vector(fp_vector(step_size * (-c)))
-    Q_enc = encrypt_vector(fp_vector(fp_vector(Q)))
-    P_enc = encrypt_matrix(fp_matrix(P))
-    x0_enc = encrypt_vector(fp_vector(x0_pt))
+experiments = [
+    (5, [20]),
+    (8, [56]),
+    (10, [90]),
+    (15, [210]),
+    (20, [380])
+]
 
 
-    def objective(x):
-        return c @ x
 
-    def _proj(x):
-        return sum_encrypted_vectors(dot_m_encrypted_vectors(x, P_enc), Q_enc)
+for exp in experiments:
+    n = exp[0]
+    Es = exp[1]
+    for E in Es:
+        results = np.asarray([np.NAN] * 6)
+        for i in range(100):  # repeat each experiment 100 times
+            # generate random graph
+            generator = GraphGenerator(N=n, E=E, seed=i)
+            e, c, A = generator.generate_random_graph()
+            c = c / np.linalg.norm(c)  # normalize cost vector
+            longest_shortest_path = generator.get_longest_path()
+            s = longest_shortest_path[0]  # starting node
+            t = longest_shortest_path[-1]  # terminal node
+            b = get_b_vector(n, s, t)
+            #################################
+            # Exact solution using plaintext
+            sol = linprog(c, A_eq=A, b_eq=b)
+            opt = sol['fun']
+            print('OPT:', opt, '---', sol['x'])
+            ###################################
 
-    def gradient(x):
-        return c_minus_enc
+            step_size = 0.1
+
+            P = np.eye(e) - A.T @ inv(A @ A.T) @ A
+            Q = A.T @ inv(A @ A.T) @ b
+            x0_pt = np.ones(e) * 0.5
+
+            c_minus_enc = encrypt_vector(fp_vector(step_size * (-c)))
+            Q_enc = encrypt_vector(fp_vector(fp_vector(Q)))
+            P_enc = encrypt_matrix(fp_matrix(P))
+            x0_enc = encrypt_vector(fp_vector(x0_pt))
 
 
-    v = x0_enc
-    beta = 2  # set beta = 1 for normal PGD
-    # start measuring execution
-    start_time = time.time()
+            def objective(x):
+                return c @ x
 
-    K = 2000
-    for k in range(K):
-        # cloud computes projected gradient descent
-        temp = sum_encrypted_vectors(v, gradient(v))
-        x0_enc_new = _proj(temp)
-        # cloud sends back result to client for comparison
-        x0_new_pt = retrieve_fp_vector(retrieve_fp_vector(decrypt_vector(x0_enc_new)))
-        # clients locally ensures that values are positive
-        x0_new_pt = np.maximum(np.zeros(e), x0_new_pt)
-        # client encrypts result and sends back to cloud
-        x0_enc_new = encrypt_vector(fp_vector(x0_new_pt))
-        # the cloud receives the final result
-        v_new = sum_encrypted_vectors(x0_enc, mul_sc_encrypted_vectors(diff_encrypted_vectors(x0_enc_new, x0_enc), np.ones(e) * beta))
+            def _proj(x):
+                return sum_encrypted_vectors(dot_m_encrypted_vectors(x, P_enc), Q_enc)
 
-        if np.allclose(x0_pt, x0_new_pt) and np.array_equal(np.rint(x0_new_pt), sol['x']):  #convergence and correctness
-            print(f'{e}:convergence after {k + 1} iterations')
-            K_longest_shortest_path.append((e, k + 1, time.time() - start_time))
-            break
-        else:
-            x0_pt = x0_new_pt
-            x0_enc = x0_enc_new
-            v = v_new
+            def gradient(x):
+                return c_minus_enc
 
-print(K_longest_shortest_path)
+
+            v = x0_enc
+            beta = 2  # set beta = 1 for normal PGD
+            # start measuring execution
+            start_time = time.time()
+
+            K = 2000
+            for k in range(K):
+                # cloud computes projected gradient descent
+                x0_enc_new = _proj(sum_encrypted_vectors(v, gradient(v)))
+                # cloud sends back result to client for comparison
+                x0_new_pt = retrieve_fp_vector(retrieve_fp_vector(decrypt_vector(x0_enc_new)))
+                # clients locally ensures that values are positive
+                x0_new_pt = np.maximum(np.zeros(e), x0_new_pt)
+                # client encrypts result and sends back to cloud
+                x0_enc_new = encrypt_vector(fp_vector(x0_new_pt))
+                # the cloud receives the final result
+                v_new = sum_encrypted_vectors(x0_enc, mul_sc_encrypted_vectors(diff_encrypted_vectors(x0_enc_new, x0_enc), np.ones(e) * beta))
+
+                if np.allclose(x0_pt, x0_new_pt): #convergence
+                    if not np.array_equal(np.rint(x0_new_pt), sol['x']):  #correctness
+                        results = np.vstack((results, np.asarray([n, e, np.NAN, np.NAN, 1, 0])))
+                        fucked_up = True
+                        print('we fucked up!')
+                        continue
+                    print(f'convergence after {k + 1} iterations')
+                    results = np.vstack((results, np.asarray([n, e, k + 1, time.time() - start_time, 1, 1])))
+                    break
+                    print(f'{e}:convergence after {k + 1} iterations')
+                    K_longest_shortest_path.append((e, k + 1, time.time() - start_time))
+                    break
+                else:
+                    x0_pt = x0_new_pt
+                    x0_enc = x0_enc_new
+                    v = v_new
+            else:
+                print('convergence not reached!')
+                if np.array_equal(np.rint(x0_dec_new), sol['x']):  # correctness
+                    results = np.vstack((results, np.asarray([n, e, np.NAN, np.NAN, 0, 1])))
+                else:
+                    results = np.vstack((results, np.asarray([n, e, np.NAN, np.NAN, 0, 0])))
+
+            with open(f'apgd_BFV.csv', 'a') as csvfile:
+                np.savetxt(csvfile, results, delimiter=',', fmt='%s', comments='')
