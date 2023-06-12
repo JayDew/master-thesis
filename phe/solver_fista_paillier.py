@@ -111,10 +111,10 @@ def get_b_vector(N, s, t):
 
 experiments = [
     (5, [20]),
-    # (8, [56]),
-    # (10, [90]),
-    # (15, [210]),
-    # (20, [380])
+    (8, [56]),
+    (10, [90]),
+    (15, [210]),
+    (20, [380])
 ]
 
 for exp in experiments:
@@ -176,7 +176,7 @@ for exp in experiments:
                 # client performs max and combines 2 previous solutions over plaintext
                 x0_dec_new = np.maximum(np.zeros(e), retrieve_fp_vector(retrieve_fp_vector(decrypt_vector(privkey, x0_enc_new))))
                 x0_dec_new = np.asarray(list(map(lambda x: float(x), x0_dec_new)))
-                temp_dec = (x0_dec_new - x0_dec) * (k-1)/(k+2)
+                temp_dec = (x0_dec_new - x0_dec) * (k-1)/(k+2)  # we cannot perform this over palintext... (see paper)
                 # the client encrypts the result and sends it to the cloud
                 x0_enc_new = encrypt_vector(pubkey, fp_vector(x0_dec_new))
                 temp_enc = encrypt_vector(pubkey, fp_vector(temp_dec))
@@ -205,5 +205,5 @@ for exp in experiments:
                 else:
                     results = np.vstack((results, np.asarray([n, e, np.NAN, np.NAN, 0, 0])))
 
-        with open(f'FISTA_paillier.csv', 'a') as csvfile:
-            np.savetxt(csvfile, results, delimiter=',', fmt='%s', comments='')
+            with open(f'FISTA_paillier.csv', 'a') as csvfile:
+                np.savetxt(csvfile, results, delimiter=',', fmt='%s', comments='')

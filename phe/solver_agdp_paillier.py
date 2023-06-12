@@ -111,10 +111,10 @@ def get_b_vector(N, s, t):
 
 experiments = [
     (5, [20]),
-    # (8, [56]),
-    # (10, [90]),
-    # (15, [210]),
-    # (20, [380])
+    (8, [56]),
+    (10, [90]),
+    (15, [210]),
+    (20, [380])
 ]
 
 for exp in experiments:
@@ -134,7 +134,7 @@ for exp in experiments:
             # Exact solution using plaintext
             sol = linprog(c, A_eq=A, b_eq=b)
             opt = sol['fun']
-            print('OPT:', opt, '---', sol['x'])
+            # print('OPT:', opt, '---', sol['x'])
             ###################################
 
             step_size = 0.1
@@ -144,7 +144,7 @@ for exp in experiments:
             Q_enc = encrypt_vector(pubkey, fp_vector(fp_vector(Q)))
             x0 = np.ones(e) * 0.5
             x0_enc = encrypt_vector(pubkey, fp_vector(x0))
-
+            x0_dec = x0
 
             def objective(x):
                 return c @ x
@@ -171,18 +171,13 @@ for exp in experiments:
                 if fucked_up:
                     break
                 x0_enc_new = _proj(sum_encrypted_vectors(y, gradient(y)))
-                x0_dec = np.maximum(np.zeros(e),
-                                    retrieve_fp_vector(retrieve_fp_vector(decrypt_vector(privkey, x0_enc_new))))
-                x0_enc_new = encrypt_vector(pubkey, fp_vector(x0_dec))
+                x0_dec_new = np.asarray(list(map(lambda x: float(x), np.maximum(np.zeros(e),
+                                    retrieve_fp_vector(retrieve_fp_vector(decrypt_vector(privkey, x0_enc_new)))))))
+                x0_enc_new = encrypt_vector(pubkey, fp_vector(x0_dec_new))
                 y_new = x0_enc + np.asarray(diff_encrypted_vectors(x0_enc_new, x0_enc)) * beta
 
-                x0_dec = np.asarray(list(map(lambda x: float(x), retrieve_fp_vector(decrypt_vector(privkey, x0_enc)))))
-                x0_new_dec = np.asarray(
-                    list(map(lambda x: float(x), retrieve_fp_vector(decrypt_vector(privkey, x0_enc_new)))))
-                # print(k, 'OPT:', f'{objective(np.rint(x0_dec)):.3f}', '---', np.rint(x0_dec))
-
-                if np.allclose(x0_dec, x0_new_dec):  # convergence
-                    if not np.array_equal(np.rint(x0_new_dec), sol['x']):  # convergence and correctness
+                if np.allclose(x0_dec, x0_dec_new):  # convergence
+                    if not np.array_equal(np.rint(x0_dec_new), sol['x']):  # convergence and correctness
                         results = np.vstack((results, np.asarray([n, e, np.NAN, np.NAN, 1, 0])))
                         fucked_up = True
                         print('we fucked up!')
@@ -193,12 +188,13 @@ for exp in experiments:
                 else:
                     x0_enc = x0_enc_new
                     y = y_new
+                    x0_dec = x0_dec_new
             else:
                 print('convergence not reached!')
-                if np.array_equal(np.rint(x0_new_dec), sol['x']):  # correctness
+                if np.array_equal(np.rint(x0_dec_new), sol['x']):  # correctness
                     results = np.vstack((results, np.asarray([n, e, np.NAN, np.NAN, 0, 1])))
                 else:
                     results = np.vstack((results, np.asarray([n, e, np.NAN, np.NAN, 0, 0])))
 
-        with open(f'FISTA_paillier.csv', 'a') as csvfile:
-            np.savetxt(csvfile, results, delimiter=',', fmt='%s', comments='')
+            with open(f'APGD_paillier.csv', 'a') as csvfile:
+                np.savetxt(csvfile, results, delimiter=',', fmt='%s', comments='')
