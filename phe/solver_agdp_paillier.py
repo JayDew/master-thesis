@@ -111,10 +111,10 @@ def get_b_vector(N, s, t):
 
 experiments = [
     (5, [20]),
-    (8, [56]),
-    (10, [90]),
-    (15, [210]),
-    (20, [380])
+    # (8, [56]),
+    # (10, [90]),
+    # (15, [210]),
+    # (20, [380])
 ]
 
 for exp in experiments:
@@ -161,6 +161,7 @@ for exp in experiments:
             # parameters for accelerated
             # projected-gradient method
             y = x0_enc
+            beta = 2
             # start measuring execution time
             start_time = time.time()
             fucked_up = False
@@ -173,12 +174,12 @@ for exp in experiments:
                 x0_dec = np.maximum(np.zeros(e),
                                     retrieve_fp_vector(retrieve_fp_vector(decrypt_vector(privkey, x0_enc_new))))
                 x0_enc_new = encrypt_vector(pubkey, fp_vector(x0_dec))
-                y_new = x0_enc + np.asarray(diff_encrypted_vectors(x0_enc_new, x0_enc)) * 2 #TODO! change this to FISTA!
+                y_new = x0_enc + np.asarray(diff_encrypted_vectors(x0_enc_new, x0_enc)) * beta
 
                 x0_dec = np.asarray(list(map(lambda x: float(x), retrieve_fp_vector(decrypt_vector(privkey, x0_enc)))))
                 x0_new_dec = np.asarray(
                     list(map(lambda x: float(x), retrieve_fp_vector(decrypt_vector(privkey, x0_enc_new)))))
-                print(k, 'OPT:', f'{objective(np.rint(x0_dec)):.3f}', '---', np.rint(x0_dec))
+                # print(k, 'OPT:', f'{objective(np.rint(x0_dec)):.3f}', '---', np.rint(x0_dec))
 
                 if np.allclose(x0_dec, x0_new_dec):  # convergence
                     if not np.array_equal(np.rint(x0_new_dec), sol['x']):  # convergence and correctness
