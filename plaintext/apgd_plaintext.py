@@ -29,7 +29,7 @@ for exp in experiments:
     n = exp[0]
     Es = exp[1]
     for E in Es:
-        results = np.asarray([np.NAN] * 6)
+        results = np.asarray([np.NAN] * 7)
         for i in range(100):  # repeat each experiment 100 times
             # generate random graph
             generator = GraphGenerator(N=n, E=E, seed=i)
@@ -62,45 +62,42 @@ for exp in experiments:
 
             # parameters for accelerated
             # projected-gradient method
-            v = x0
+            v_new = x0
             beta = 2  # set beta = 1 for normal PGD
             # start measuring execution
             start_time = time.time()
 
             temps = []
-            points = []
+            points = np.zeros(e)
             convergence = []
             fucked_up = False
 
-            K = 5000
+            K = 3000
             for k in range(K):
                 if fucked_up:
                     break
-                temp = v - step_size * gradient(v)
-                x0_new = P @ (temp) + Q
+                x0_new = P @ (v_new - step_size * gradient(v_new)) + Q
                 x0_new = np.maximum(np.zeros(e), x0_new)
-                v_new = x0 + beta * (x0_new - x0)
-                # convergence.append((objective(x0_new) - objective(sol["x"])) / objective(sol["x"]))
-                # print(k, 'OPT:', f'{objective(np.rint(x0)):.3f}', '---', np.rint(x0))
+                v = x0 + beta * (x0_new - x0)
 
                 if np.allclose(x0, x0_new):  # convergence
-                    if not np.array_equal(np.rint(x0_new), sol['x']):  # correctness
-                        results = np.vstack((results, np.asarray([n, e, np.NAN, np.NAN, 1, 0])))
+                    if not np.equal(objective(np.rint(x0_new)), objective(sol['x'])):  # correctness
+                        results = np.vstack((results, np.asarray([n, e, np.NAN, np.NAN, 1, 0, ((objective(x0_new) - objective(sol["x"])) / objective(sol["x"]))])))
                         fucked_up = True
                         print('we fucked up!')
                         continue
                     print(f'convergence after {k + 1} iterations')
-                    results = np.vstack((results, np.asarray([n, e, k + 1, time.time() - start_time, 1, 1])))
+                    results = np.vstack((results, np.asarray([n, e, k + 1, time.time() - start_time, 1, 1, ((objective(x0_new) - objective(sol["x"])) / objective(sol["x"]))])))
                     break
                 else:
                     x0 = x0_new
-                    v = v_new
+                    v_new = v
             else:
                 print('convergence not reached!')
-                if np.array_equal(np.rint(x0_new), sol['x']):  # correctness
-                    results = np.vstack((results, np.asarray([n, e, np.NAN, np.NAN, 0, 1])))
+                if np.equal(objective(np.rint(x0_new)), objective(sol['x'])):  # correctness
+                    results = np.vstack((results, np.asarray([n, e, np.NAN, np.NAN, 0, 1, ((objective(x0_new) - objective(sol["x"])) / objective(sol["x"]))])))
                 else:
-                    results = np.vstack((results, np.asarray([n, e, np.NAN, np.NAN, 0, 0])))
+                    results = np.vstack((results, np.asarray([n, e, np.NAN, np.NAN, 0, 0, ((objective(x0_new) - objective(sol["x"])) / objective(sol["x"]))])))
 
         with open(f'apgd_beta_{beta}.csv', 'a') as csvfile:
             np.savetxt(csvfile, results, delimiter=',', fmt='%s', comments='')
