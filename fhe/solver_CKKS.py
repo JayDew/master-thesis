@@ -65,7 +65,7 @@ experiments = [
     (5, [20]),
     (8, [56]),
     (10, [90]),
-    (15, [210]),
+    (16, [210]),
     (20, [380])
 ]
 
@@ -78,7 +78,7 @@ for exp in experiments:
             # generate random graph
             generator = GraphGenerator(N=n, E=E, seed=i)
             e, c, A = generator.generate_random_graph()
-            c = c / np.linalg.norm(c)  # normalize cost vector
+            # c = c / np.linalg.norm(c)  # normalize cost vector
             longest_shortest_path = generator.get_longest_path()
             s = longest_shortest_path[0]  # starting node
             t = longest_shortest_path[-1]  # terminal node
@@ -123,7 +123,7 @@ for exp in experiments:
 
             K = 50
 
-            for k in range(2, K):
+            for k in range(K):
                 # cloud computes projected gradient descent
                 temp = sum_encrypted_vectors(v, gradient(v))
                 x0_enc_new = _proj(temp)
@@ -134,9 +134,7 @@ for exp in experiments:
                 # client encrypts result and sends back to cloud
                 x0_enc_new = encrypt_vector(x0_new_pt)
                 # the cloud receives the final result
-                v_new = sum_encrypted_vectors(x0_enc,
-                                              mul_sc_encrypted_vectors(diff_encrypted_vectors(x0_enc_new, x0_enc),
-                                                                       np.ones(e) * (k - 1) / (k + 2)))
+                v_new = sum_encrypted_vectors(x0_enc, mul_sc_encrypted_vectors(diff_encrypted_vectors(x0_enc_new, x0_enc), np.ones(e) * 2))
 
                 # print(k, 'OPT:', f'{objective(np.rint(x0_new_pt)):.3f}', '---', np.rint(x0_new_pt))
                 if np.allclose(x0_pt, x0_new_pt):  # convergence
