@@ -41,6 +41,10 @@ for exp in experiments:
             t = longest_shortest_path[-1]  # terminal node
             b = get_b_vector(n, s, t)
             # generator.save_graph_image(s, t) # save png
+            # A = np.asarray([[1, 1], [-1, -1]])
+            # b = np.asarray([1, -1])
+            # c = np.asarray([1, 2])
+            # e = 2
             #################################
             # Exact solution using plaintext
             sol = linprog(c, A_eq=A, b_eq=b)
@@ -69,7 +73,7 @@ for exp in experiments:
             start_time = time.time()
 
             temps = []
-            points = np.zeros(e)
+            points = []
             convergence = []
             fucked_up = False
 
@@ -82,6 +86,7 @@ for exp in experiments:
                 v = x0 + beta * (x0_new - x0)
 
                 convergence.append((objective(x0_new) - objective(sol["x"])) / objective(sol["x"])) #remove this after you plot the graphs
+                # points.append((x0_new[0], x0_new[1]))
 
                 if np.allclose(x0, x0_new):  # convergence
                     if not (np.isclose(objective(x0_new), objective(sol['x']), rtol=1.e-1) or np.allclose(np.rint(x0_new), sol['x'])):  # correctness
