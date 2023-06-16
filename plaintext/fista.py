@@ -6,6 +6,7 @@ import time
 np.random.seed(420)
 
 def inv(A):
+    # return np.linalg.inv(A.T.dot(A) + 0.1 * np.eye(A.shape[1])).dot(A.T)
     # Moore-Penrose pseudo-inverse of A
     return np.linalg.pinv(A)
 
@@ -18,11 +19,11 @@ def get_b_vector(N, s, t):
 
 
 experiments = [
-    # (5, [6]),
-    # (8, [56]),
+    (5, [20]),
+    (8, [56]),
     (10, [90]),
-    # (16, [210]),
-    # (20, [380])
+    (16, [210]),
+    (20, [380])
 ]
 
 for exp in experiments:
@@ -34,7 +35,6 @@ for exp in experiments:
             # generate random graph
             generator = GraphGenerator(N=n, E=E, seed=i)
             e, c, A = generator.generate_random_graph()
-            # c_normal = c
             # c = c / np.linalg.norm(c) #normalize cost vector
             longest_shortest_path = generator.get_longest_path() #get the longest shortest path
             s = longest_shortest_path[0]  # starting node
@@ -52,7 +52,7 @@ for exp in experiments:
             # print('OPT:', opt, '---', sol['x'])
             ###################################
 
-            step_size = 0.1
+            step_size = 0.00001
             P = np.eye(e) - A.T @ inv(A @ A.T) @ A
             Q = A.T @ inv(A @ A.T) @ b
             x0 = np.ones(e) * 0.5  # initial guess
@@ -67,44 +67,43 @@ for exp in experiments:
 
             # parameters for accelerated
             # projected-gradient method
-            v_new = x0
-            beta = 1/2  # set beta = 1 for normal PGD
+            y = x0
             # start measuring execution
             start_time = time.time()
 
-            temps = []
-            points = []
             convergence = []
+            points = []
             fucked_up = False
 
             K = 3000
             for k in range(K):
                 if fucked_up:
                     break
-                x0_new = P @ (v_new - step_size * gradient(v_new)) + Q
+                x0_new = P @ (y - step_size * gradient(y)) + Q
                 x0_new = np.maximum(np.zeros(e), x0_new)
-                v = x0_new + beta * (x0_new - x0)
+                y_new = x0_new + (k-1)/(k+2) * (x0_new - x0)
 
                 convergence.append((objective(x0_new) - objective(sol["x"])) / objective(sol["x"])) #remove this after you plot the graphs
                 points.append((x0_new[0], x0_new[1]))
 
                 if np.allclose(x0, x0_new):  # convergence
                     if not (np.isclose(objective(x0_new), objective(sol['x']), rtol=1.e-1) or np.allclose(np.rint(x0_new), sol['x'])):  # correctness
-                        results = np.vstack((results, np.asarray([n, e, np.NAN, np.NAN, 1, 0, (objective(x0_new) - objective(sol["x"]))])))
+                        results = np.vstack((results, np.asarray([n, e, np.NAN, np.NAN, 1, 0, ((objective(x0_new) - objective(sol["x"])) / objective(sol["x"]))])))
                         fucked_up = True
                         continue
                     print(f'convergence after {k + 1} iterations')
-                    results = np.vstack((results, np.asarray([n, e, k + 1, time.time() - start_time, 1, 1, (objective(x0_new) - objective(sol["x"])) / objective(sol["x"])])))
+                    results = np.vstack((results, np.asarray([n, e, k + 1, time.time() - start_time, 1, 1, ((objective(x0_new) - objective(sol["x"])) / objective(sol["x"]))])))
                     break
                 else:
                     x0 = x0_new
-                    v_new = v
+                    y = y_new
             else:
-                print('convergence not reached!')
-                if np.isclose(objective(x0_new), objective(sol['x']), rtol=1.e-1) or np.allclose(np.rint(x0_new), sol['x']):  # correctness
-                    results = np.vstack((results, np.asarray([n, e, np.NAN, np.NAN, 0, 1, (objective(x0_new) - objective(sol["x"])) / objective(sol["x"])])))
+                if (np.isclose(objective(x0_new), objective(sol['x']), rtol=1.e-1) or np.allclose(np.rint(x0_new), sol['x'])):  # correctness
+                    print('convergence not reached! -- correct solution found!')
+                    results = np.vstack((results, np.asarray([n, e, np.NAN, np.NAN, 0, 1, ((objective(x0_new) - objective(sol["x"])) / objective(sol["x"]))])))
                 else:
-                    results = np.vstack((results, np.asarray([n, e, np.NAN, np.NAN, 0, 0, (objective(x0_new) - objective(sol["x"])) / objective(sol["x"])])))
+                    print('convergence not reached! -- correct solution NOT found!')
+                    results = np.vstack((results, np.asarray([n, e, np.NAN, np.NAN, 0, 0, ((objective(x0_new) - objective(sol["x"])) / objective(sol["x"]))])))
 
-        with open(f'apgd_beta_{beta}.csv', 'a') as csvfile:
+        with open(f'fista.csv', 'a') as csvfile:
             np.savetxt(csvfile, results, delimiter=',', fmt='%s', comments='')

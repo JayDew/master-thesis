@@ -74,6 +74,7 @@ for exp in experiments:
 
             temps = []
             points = []
+            vs = []
             convergence = []
             fucked_up = False
 
@@ -83,10 +84,12 @@ for exp in experiments:
                     break
                 x0_new = P @ (v_new - step_size * gradient(v_new)) + Q
                 x0_new = np.maximum(np.zeros(e), x0_new)
-                v = x0 + beta * (x0_new - x0)
-
+                v = x0_new
+                print('v:', v)
+                print(x0_new)
                 convergence.append((objective(x0_new) - objective(sol["x"])) / objective(sol["x"])) #remove this after you plot the graphs
-                # points.append((x0_new[0], x0_new[1]))
+                points.append((x0_new[0], x0_new[1]))
+                vs.append(v)
 
                 if np.allclose(x0, x0_new):  # convergence
                     if not (np.isclose(objective(x0_new), objective(sol['x']), rtol=1.e-1) or np.allclose(np.rint(x0_new), sol['x'])):  # correctness
