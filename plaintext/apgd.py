@@ -52,13 +52,13 @@ for exp in experiments:
             # print('OPT:', opt, '---', sol['x'])
             ###################################
 
-            step_size = 0.01
+            step_size = 0.0001
             P = np.eye(e) - A.T @ inv(A @ A.T) @ A
             Q = A.T @ inv(A @ A.T) @ b
             x0 = np.ones(e) * 0.5  # initial guess
 
             def objective(x):
-                return c_normal @ x
+                return c @ x
 
 
             def gradient(x):

@@ -158,6 +158,8 @@ for exp in experiments:
                 return enc_c_minus
 
 
+            v_new = x0_enc
+            beta = 2  # set beta = 1 for normal PGD
             # start measuring execution time
             start_time = time.time()
             fucked_up = False
@@ -167,23 +169,25 @@ for exp in experiments:
                 if fucked_up:
                     break
                 # cloud performs the projection
-                x0_enc_new = _proj(sum_encrypted_vectors(x0_enc, gradient(x0_enc)))
+                x0_enc_new = _proj(sum_encrypted_vectors(v_new, gradient(v_new)))
                 # sends to the client for decryption
                 x0_dec_new = np.asarray(list(map(lambda x: float(x), np.maximum(np.zeros(e), retrieve_fp_vector(retrieve_fp_vector(decrypt_vector(privkey, x0_enc_new)))))))
                 # client locally performs max
                 x0_enc_new = encrypt_vector(pubkey, fp_vector(x0_dec_new))
+                # cloud combines 2 previous solutions
+                v_new = x0_enc + np.asarray(diff_encrypted_vectors(x0_enc_new, x0_enc)) * beta
 
                 if np.allclose(x0_dec, x0_dec_new):  # convergence
                     if not (np.isclose(objective(x0_dec_new), objective(sol['x']), rtol=1.e-1) or np.allclose(np.rint(x0_dec_new), sol['x'])):  # convergence and correctness
                         results = np.vstack((results, np.asarray([n, e, np.NAN, np.NAN, 1, 0, (objective(x0_dec_new) - objective(sol["x"]))])))
                         fucked_up = True
-                        print('we fucked up!')
                         continue
                     print(f'convergence after {k + 1} iterations')
                     results = np.vstack((results, np.asarray([n, e, k + 1, time.time() - start_time, 1, 1, (objective(x0_dec_new) - objective(sol["x"])) / objective(sol["x"])])))
                     break
                 else:
                     x0_enc = x0_enc_new
+                    v = v_new
                     x0_dec = x0_dec_new
             else:
                 print('convergence not reached!')

@@ -24,8 +24,8 @@ sub1.set_ylabel(r'$ \frac{|f(x_k) - f^{*}|}{|f^{*}}$', labelpad=15)
 # Create second axes, a combination of third and fourth cell
 sub2 = fig.add_subplot(2,2,2) # two rows, two columns, second cell
 sub2.plot(x, y, color='blue')
-sub2.set_xlim(80, 130)
-sub2.set_ylim(-.07, -.05)
+sub2.set_xlim(75, 700)
+sub2.set_ylim(-.09, -.01)
 # sub2.set_ylabel(r'$ \frac{|f(x_k) - f^{*}|}{|f^{*}}$', labelpad=15)
 
 # Create third axes, a combination of third and fourth cell
@@ -38,7 +38,7 @@ sub3.set_ylabel(r'$ \frac{|f(x_k) - f^{*}|}{|f^{*}}$', labelpad=15)
 
 # Create blocked area in third axes
 sub3.fill_between((20, 35), 0, 13, facecolor='blue', alpha=0.2)  # blocked area for first axes
-sub3.fill_between((80, 130), 0, 13, facecolor='blue', alpha=0.2)  # blocked area for first axes
+sub3.fill_between((75, 150), 0, 13, facecolor='blue', alpha=0.2)  # blocked area for first axes
 
 # Save figure with nice margin
 plt.savefig('zoom_effect_2.png', dpi=300, bbox_inches='tight', pad_inches=.1)
