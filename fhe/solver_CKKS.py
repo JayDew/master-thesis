@@ -63,18 +63,20 @@ def get_b_vector(N, s, t):
 
 experiments = [
     (5, [20]),
-    (8, [56]),
-    (10, [90]),
-    (16, [210]),
-    (20, [380])
+    # (8, [56]),
+    # (10, [90]),
+    # (16, [210]),
+    # (20, [380])
 ]
+
+# iterations = [479, 86, 145, 76, 256]
 
 for exp in experiments:
     n = exp[0]
     Es = exp[1]
     for E in Es:
-        results = np.asarray([np.NAN] * 6)
-        for i in range(100):  # repeat each experiment 100 times
+        results = np.asarray([np.NAN] * 7)
+        for i in range(5):  # repeat each experiment 100 times
             # generate random graph
             generator = GraphGenerator(N=n, E=E, seed=i)
             e, c, A = generator.generate_random_graph()
@@ -83,14 +85,18 @@ for exp in experiments:
             s = longest_shortest_path[0]  # starting node
             t = longest_shortest_path[-1]  # terminal node
             b = get_b_vector(n, s, t)
+            # A = np.asarray([[1, 1], [-1, -1]])
+            # b = np.asarray([1, -1])
+            # c = np.asarray([1, 2])
+            # e = 2
             #################################
             # Exact solution using plaintext
             sol = linprog(c, A_eq=A, b_eq=b)
             opt = sol['fun']
-            # print('OPT:', opt, '---', sol['x'])
+            print('OPT:', opt, '---', sol['x'])
             ###################################
 
-            step_size = 0.1
+            step_size = 0.0001
 
             P = np.eye(e) - A.T @ inv(A @ A.T) @ A
             Q = A.T @ inv(A @ A.T) @ b
@@ -120,13 +126,12 @@ for exp in experiments:
             beta = 2  # set beta = 1 for normal PGD
             # start measuring execution
             start_time = time.time()
+            points = []
 
-            K = 50
-
+            K = 500
             for k in range(K):
                 # cloud computes projected gradient descent
-                temp = sum_encrypted_vectors(v, gradient(v))
-                x0_enc_new = _proj(temp)
+                x0_enc_new = _proj(sum_encrypted_vectors(v, gradient(v)))
                 # cloud sends back result to client for comparison
                 x0_new_pt = decrypt_vector(x0_enc_new)
                 # clients locally ensures that values are positive
@@ -134,18 +139,21 @@ for exp in experiments:
                 # client encrypts result and sends back to cloud
                 x0_enc_new = encrypt_vector(x0_new_pt)
                 # the cloud receives the final result
-                v_new = sum_encrypted_vectors(x0_enc, mul_sc_encrypted_vectors(diff_encrypted_vectors(x0_enc_new, x0_enc), np.ones(e) * 2))
+                v_new = sum_encrypted_vectors(x0_enc, mul_sc_encrypted_vectors(diff_encrypted_vectors(x0_enc_new, x0_enc), np.ones(e) * beta))
+
+                points.append((x0_new_pt[0], x0_new_pt[1]))
 
                 # print(k, 'OPT:', f'{objective(np.rint(x0_new_pt)):.3f}', '---', np.rint(x0_new_pt))
                 if np.allclose(x0_pt, x0_new_pt):  # convergence
-                    if not np.array_equal(np.rint(x0_new_pt), sol['x']):  # correctness
-                        results = np.vstack((results, np.asarray([n, e, np.NAN, np.NAN, 1, 0])))
+                    if not (np.isclose(objective(x0_new_pt), objective(sol['x']), rtol=1.e-1) or np.allclose(np.rint(x0_new_pt), sol['x'])):  # correctness
+                        results = np.vstack((results, np.asarray([n, e, k, time.time() - start_time, 1, 0,  (objective(x0_new_pt) - objective(sol["x"]))])))
                         fucked_up = True
                         print('we fucked up!')
                         continue
                     else:
                         print(f'convergence after {k - 1} iterations')
-                        results = np.vstack((results, np.asarray([n, e, k - 1, time.time() - start_time, 1, 1])))
+                        results = np.vstack((results, np.asarray([n, e, k - 1, time.time() - start_time, 1, 1,  (objective(x0_new_pt) - objective(sol["x"]))])))
+                        break
                 else:
                     x0_pt = x0_new_pt
                     x0_enc = x0_enc_new
@@ -153,9 +161,9 @@ for exp in experiments:
             else:
                 print('convergence not reached!')
                 if np.array_equal(np.rint(x0_new_pt), sol['x']):  # correctness
-                    results = np.vstack((results, np.asarray([n, e, np.NAN, np.NAN, 0, 1])))
+                    results = np.vstack((results, np.asarray([n, e, k, time.time() - start_time, 0, 1, (objective(x0_new_pt) - objective(sol["x"]))])))
                 else:
-                    results = np.vstack((results, np.asarray([n, e, np.NAN, np.NAN, 0, 0])))
+                    results = np.vstack((results, np.asarray([n, e, k, time.time() - start_time, 0, 0, (objective(x0_new_pt) - objective(sol["x"]))])))
 
-            with open(f'fista_CKKS.csv', 'a') as csvfile:
+            with open(f'../experiments/fhe/CKKS.csv', 'a') as csvfile:
                 np.savetxt(csvfile, results, delimiter=',', fmt='%s', comments='')

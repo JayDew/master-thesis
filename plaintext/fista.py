@@ -30,8 +30,8 @@ for exp in experiments:
     n = exp[0]
     Es = exp[1]
     for E in Es:
-        results = np.asarray([np.NAN] * 7)
-        for i in range(100):  # repeat each experiment 100 times
+        results = np.asarray([np.NAN] * 8)
+        for i in range(50):  # repeat each experiment 100 times
             # generate random graph
             generator = GraphGenerator(N=n, E=E, seed=i)
             e, c, A = generator.generate_random_graph()
@@ -52,7 +52,7 @@ for exp in experiments:
             # print('OPT:', opt, '---', sol['x'])
             ###################################
 
-            step_size = 0.00001
+            step_size = 0.001
             P = np.eye(e) - A.T @ inv(A @ A.T) @ A
             Q = A.T @ inv(A @ A.T) @ b
             x0 = np.ones(e) * 0.5  # initial guess
@@ -71,39 +71,42 @@ for exp in experiments:
             # start measuring execution
             start_time = time.time()
 
+            correct_value_after = 0
+            correct_found = False
+
             convergence = []
             points = []
             fucked_up = False
 
-            K = 3000
-            for k in range(K):
+            k = 0
+            while True:
+                k = k + 1
                 if fucked_up:
                     break
                 x0_new = P @ (y - step_size * gradient(y)) + Q
                 x0_new = np.maximum(np.zeros(e), x0_new)
                 y_new = x0_new + (k-1)/(k+2) * (x0_new - x0)
 
+
                 convergence.append((objective(x0_new) - objective(sol["x"])) / objective(sol["x"])) #remove this after you plot the graphs
-                points.append((x0_new[0], x0_new[1]))
+
+
+                # correctness without convergence
+                if np.allclose(np.rint(x0_new), sol['x']) and not correct_found:
+                    correct_found = True
+                    correct_value_after = k
 
                 if np.allclose(x0, x0_new):  # convergence
-                    if not (np.isclose(objective(x0_new), objective(sol['x']), rtol=1.e-1) or np.allclose(np.rint(x0_new), sol['x'])):  # correctness
-                        results = np.vstack((results, np.asarray([n, e, np.NAN, np.NAN, 1, 0, ((objective(x0_new) - objective(sol["x"])) / objective(sol["x"]))])))
+                    if not (np.isclose(objective(x0_new), objective(sol['x']), rtol=1.e-2) or np.allclose(np.rint(x0_new), sol['x'])):  # correctness
+                        results = np.vstack((results, np.asarray([n, e, correct_value_after, k+1, time.time() - start_time , 1, 0, ((objective(x0_new) - objective(sol["x"])) / objective(sol["x"]))])))
                         fucked_up = True
                         continue
                     print(f'convergence after {k + 1} iterations')
-                    results = np.vstack((results, np.asarray([n, e, k + 1, time.time() - start_time, 1, 1, ((objective(x0_new) - objective(sol["x"])) / objective(sol["x"]))])))
+                    results = np.vstack((results, np.asarray([n, e, correct_value_after,  k + 1, time.time() - start_time, 1, 1, ((objective(x0_new) - objective(sol["x"])) / objective(sol["x"]))])))
                     break
                 else:
                     x0 = x0_new
                     y = y_new
-            else:
-                if (np.isclose(objective(x0_new), objective(sol['x']), rtol=1.e-1) or np.allclose(np.rint(x0_new), sol['x'])):  # correctness
-                    print('convergence not reached! -- correct solution found!')
-                    results = np.vstack((results, np.asarray([n, e, np.NAN, np.NAN, 0, 1, ((objective(x0_new) - objective(sol["x"])) / objective(sol["x"]))])))
-                else:
-                    print('convergence not reached! -- correct solution NOT found!')
-                    results = np.vstack((results, np.asarray([n, e, np.NAN, np.NAN, 0, 0, ((objective(x0_new) - objective(sol["x"])) / objective(sol["x"]))])))
 
-        with open(f'fista.csv', 'a') as csvfile:
+        with open(f'apgd.csv', 'a') as csvfile:
             np.savetxt(csvfile, results, delimiter=',', fmt='%s', comments='')

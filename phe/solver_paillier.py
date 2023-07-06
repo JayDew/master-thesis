@@ -5,10 +5,10 @@ from gmpy2 import mpz
 from phe import paillier
 import gmpy2
 
-DEFAULT_KEYSIZE = 512
+DEFAULT_KEYSIZE = 1024
 DEFAULT_MSGSIZE = 32
 DEFAULT_PRECISION = int(DEFAULT_MSGSIZE / 2)  # of fractional bits
-DEFAULT_FACTOR = 60
+DEFAULT_FACTOR = 10
 
 np.random.seed(420)
 
@@ -111,8 +111,8 @@ def get_b_vector(N, s, t):
 
 experiments = [
     (5, [20]),
-    (8, [56]),
-    (10, [90]),
+    # (8, [56]),
+    # (10, [90]),
     # (16, [210]),
     # (20, [380])
 ]
@@ -121,8 +121,8 @@ for exp in experiments:
     n = exp[0]
     Es = exp[1]
     for E in Es:
-        results = np.asarray([np.NAN] * 7)
-        for i in range(5):  # repeat each experiment 100 times
+        results = np.asarray([np.NAN] * 8)
+        for i in range(10):  # repeat each experiment 10 times
             generator = GraphGenerator(N=n, E=E, seed=i)  # generate graph
             e, c, A = generator.generate_random_graph()
             # c = c / np.linalg.norm(c)  # normalize cost vector
@@ -137,7 +137,7 @@ for exp in experiments:
             # print('OPT:', opt, '---', sol['x'])
             ###################################
 
-            step_size = 0.0001
+            step_size = 0.001
             enc_c_minus = encrypt_vector(pubkey, fp_vector(step_size * (-c)))
             P = np.eye(e) - A.T @ inv(A @ A.T) @ A
             Q = A.T @ inv(A @ A.T) @ b
@@ -158,43 +158,41 @@ for exp in experiments:
                 return enc_c_minus
 
 
-            v_new = x0_enc
-            beta = 2  # set beta = 1 for normal PGD
+            correct_value_after = 0
+            correct_found = False
             # start measuring execution time
             start_time = time.time()
             fucked_up = False
 
-            K = 3000
-            for k in range(K):
+            k = 0
+            while True:
+                k = k + 1
+                print(k)
                 if fucked_up:
                     break
                 # cloud performs the projection
-                x0_enc_new = _proj(sum_encrypted_vectors(v_new, gradient(v_new)))
+                x0_enc_new = _proj(sum_encrypted_vectors(x0_enc, gradient(x0_enc)))
                 # sends to the client for decryption
                 x0_dec_new = np.asarray(list(map(lambda x: float(x), np.maximum(np.zeros(e), retrieve_fp_vector(retrieve_fp_vector(decrypt_vector(privkey, x0_enc_new)))))))
-                # client locally performs max
+                # client locally performs max and sends ecrypted vector
                 x0_enc_new = encrypt_vector(pubkey, fp_vector(x0_dec_new))
-                # cloud combines 2 previous solutions
-                v_new = x0_enc + np.asarray(diff_encrypted_vectors(x0_enc_new, x0_enc)) * beta
+
+                # correctness without convergence
+                if np.allclose(np.rint(x0_dec_new), sol['x']) and not correct_found:
+                    correct_found = True
+                    correct_value_after = k
 
                 if np.allclose(x0_dec, x0_dec_new):  # convergence
-                    if not (np.isclose(objective(x0_dec_new), objective(sol['x']), rtol=1.e-1) or np.allclose(np.rint(x0_dec_new), sol['x'])):  # convergence and correctness
-                        results = np.vstack((results, np.asarray([n, e, np.NAN, np.NAN, 1, 0, (objective(x0_dec_new) - objective(sol["x"]))])))
+                    if not (np.isclose(objective(x0_dec_new), objective(sol['x']), rtol=1.e-2) or np.allclose(np.rint(x0_dec_new), sol['x'])):  # correctness
+                        results = np.vstack((results, np.asarray([n, e, correct_value_after, k + 1, time.time() - start_time, 1, 0, (objective(x0_dec_new) - objective(sol["x"]))])))
                         fucked_up = True
                         continue
                     print(f'convergence after {k + 1} iterations')
-                    results = np.vstack((results, np.asarray([n, e, k + 1, time.time() - start_time, 1, 1, (objective(x0_dec_new) - objective(sol["x"])) / objective(sol["x"])])))
+                    results = np.vstack((results, np.asarray([n, e, correct_value_after, k + 1, time.time() - start_time, 1, 1, (objective(x0_dec_new) - objective(sol["x"])) / objective(sol["x"])])))
                     break
                 else:
                     x0_enc = x0_enc_new
-                    v = v_new
                     x0_dec = x0_dec_new
-            else:
-                print('convergence not reached!')
-                if np.isclose(objective(x0_dec_new), objective(sol['x']), rtol=1.e-1) or np.allclose(np.rint(x0_dec_new), sol['x']):  # correctness
-                    results = np.vstack((results, np.asarray([n, e, np.NAN, np.NAN, 0, 1, (objective(x0_dec_new) - objective(sol["x"])) / objective(sol["x"])])))
-                else:
-                    results = np.vstack((results, np.asarray([n, e, np.NAN, np.NAN, 0, 0, (objective(x0_dec_new) - objective(sol["x"])) / objective(sol["x"])])))
 
         with open(f'PGD_paillier.csv', 'a') as csvfile:
             np.savetxt(csvfile, results, delimiter=',', fmt='%s', comments='')

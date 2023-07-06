@@ -94,8 +94,8 @@ for exp in experiments:
     n = exp[0]
     Es = exp[1]
     for E in Es:
-        results = np.asarray([np.NAN] * 7)
-        for i in range(5):  # repeat each experiment 100 times
+        results = np.asarray([np.NAN] * 8)
+        for i in range(10):  # repeat each experiment 10 times
             # generate random graph
             generator = GraphGenerator(N=n, E=E, seed=i)
             e, c, A = generator.generate_random_graph()
@@ -133,44 +133,45 @@ for exp in experiments:
                 return c_minus_enc
 
 
-            v = x0_enc
+            correct_value_after = 0
+            correct_found = False
+
             # start measuring execution
             start_time = time.time()
 
-            K = 500
-            for k in range(K):
+            k = 0
+            while True:
+                k = k+1
+                print(k)
+
                 # cloud computes projected gradient descent
-                x0_enc_new = _proj(sum_encrypted_vectors(v, gradient(v)))
+                x0_enc_new = _proj(sum_encrypted_vectors(x0_enc, gradient(x0_enc)))
                 # cloud sends back result to client for comparison
                 x0_new_pt = retrieve_fp_vector(retrieve_fp_vector(decrypt_vector(x0_enc_new)))
                 # clients locally ensures that values are positive
                 x0_new_pt = np.maximum(np.zeros(e), x0_new_pt)
+                x0_new_pt = x0_new_pt + (x0_new_pt - x0_pt) * (k-1)/(k+2)  # we cannot perform this over palintext... (see paper)
                 # client encrypts result and sends back to cloud
                 x0_enc_new = encrypt_vector(fp_vector(x0_new_pt))
-                # the cloud receives the final result
-                v_new = sum_encrypted_vectors(x0_enc, mul_sc_encrypted_vectors(diff_encrypted_vectors(x0_enc_new, x0_enc), np.ones(e) * beta))
+
+                # correctness without convergence
+                if np.allclose(np.rint(x0_new_pt), sol['x']) and not correct_found:
+                    correct_found = True
+                    correct_value_after = k
+
 
                 if np.allclose(x0_pt, x0_new_pt): #convergence
                     if not (np.isclose(objective(x0_new_pt), objective(sol['x']), rtol=1.e-1) or np.allclose(np.rint(x0_new_pt), sol['x'])):  #correctness
-                        results = np.vstack((results, np.asarray([n, e, np.NAN, np.NAN, 1, 0, (objective(x0_new_pt) - objective(sol["x"])) / objective(sol["x"])])))
+                        results = np.vstack((results, np.asarray([n, e, correct_value_after, k+1,time.time() - start_time, 1, 0, (objective(x0_new_pt) - objective(sol["x"])) / objective(sol["x"])])))
                         fucked_up = True
                         continue
                     print(f'convergence after {k + 1} iterations')
-                    results = np.vstack((results, np.asarray([n, e, k + 1, time.time() - start_time, 1, 1, (objective(x0_new_pt) - objective(sol["x"])) / objective(sol["x"])])))
-                    break
+                    results = np.vstack((results, np.asarray([n, e, correct_value_after, k+1, time.time() - start_time, 1, 1, (objective(x0_new_pt) - objective(sol["x"])) / objective(sol["x"])])))
                     print(f'{e}:convergence after {k + 1} iterations')
-                    K_longest_shortest_path.append((e, k + 1, time.time() - start_time))
                     break
                 else:
                     x0_pt = x0_new_pt
                     x0_enc = x0_enc_new
-                    v = v_new
-            else:
-                print('convergence not reached!')
-                if (np.isclose(objective(x0_new_pt), objective(sol['x']), rtol=1.e-1) or np.allclose(np.rint(x0_new_pt), sol['x'])):  # correctness
-                    results = np.vstack((results, np.asarray([n, e, np.NAN, np.NAN, 0, 1, (objective(x0_new_pt) - objective(sol["x"])) / objective(sol["x"])])))
-                else:
-                    results = np.vstack((results, np.asarray([n, e, np.NAN, np.NAN, 0, 0, (objective(x0_new_pt) - objective(sol["x"])) / objective(sol["x"])])))
 
-            with open(f'BFV.csv', 'a') as csvfile:
-                np.savetxt(csvfile, results, delimiter=',', fmt='%s', comments='')
+                with open(f'BFV.csv', 'a') as csvfile:
+                    np.savetxt(csvfile, results, delimiter=',', fmt='%s', comments='')

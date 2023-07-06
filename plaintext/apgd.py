@@ -18,8 +18,8 @@ def get_b_vector(N, s, t):
 
 
 experiments = [
-    (5, [20]),
-    (8, [56]),
+    # (5, [20]),
+    # (8, [56]),
     (10, [90]),
     (16, [210]),
     (20, [380])
@@ -29,8 +29,8 @@ for exp in experiments:
     n = exp[0]
     Es = exp[1]
     for E in Es:
-        results = np.asarray([np.NAN] * 7)
-        for i in range(100):  # repeat each experiment 100 times
+        results = np.asarray([np.NAN] * 8)
+        for i in range(50):  # repeat each experiment 50 times
             # generate random graph
             generator = GraphGenerator(N=n, E=E, seed=i)
             e, c, A = generator.generate_random_graph()
@@ -52,7 +52,7 @@ for exp in experiments:
             # print('OPT:', opt, '---', sol['x'])
             ###################################
 
-            step_size = 0.0001
+            step_size = 0.001
             P = np.eye(e) - A.T @ inv(A @ A.T) @ A
             Q = A.T @ inv(A @ A.T) @ b
             x0 = np.ones(e) * 0.5  # initial guess
@@ -64,50 +64,40 @@ for exp in experiments:
             def gradient(x):
                 return c
 
-
-            # parameters for accelerated
-            # projected-gradient method
-            v_new = x0
-            beta = 2  # set beta = 1 for normal PGD
             # start measuring execution
             start_time = time.time()
 
-            temps = []
-            points = []
-            vs = []
             convergence = []
             fucked_up = False
+            correct_value_after = 0
+            correct_found = False
 
-            K = 3000
-            for k in range(K):
+            k = 0
+            while True:
+                k = k + 1
                 if fucked_up:
                     break
-                x0_new = P @ (v_new - step_size * gradient(v_new)) + Q
+                x0_new = P @ (x0 - step_size * gradient(x0)) + Q
                 x0_new = np.maximum(np.zeros(e), x0_new)
-                v = x0 + (x0_new - x0) * beta
-                # print('v:', v)
-                # print(x0_new)
-                # convergence.append((objective(x0_new) - objective(sol["x"])) / objective(sol["x"])) #remove this after you plot the graphs
-                points.append((x0_new[0], x0_new[1]))
-                # vs.append(v)
+
+                convergence.append((objective(x0_new) - objective(sol["x"])) / objective(sol["x"])) #remove this after you plot the graphs
+
+
+                # correctness without convergence
+                if np.allclose(np.rint(x0_new), sol['x']) and not correct_found:
+                    correct_found = True
+                    correct_value_after = k
 
                 if np.allclose(x0, x0_new):  # convergence
-                    if not (np.isclose(objective(x0_new), objective(sol['x']), rtol=1.e-1) or np.allclose(np.rint(x0_new), sol['x'])):  # correctness
-                        results = np.vstack((results, np.asarray([n, e, np.NAN, np.NAN, 1, 0, (objective(x0_new) - objective(sol["x"]))])))
+                    if not (np.isclose(objective(x0_new), objective(sol['x']), rtol=1.e-2) or np.allclose(np.rint(x0_new), sol['x'])):  # correctness
+                        results = np.vstack((results, np.asarray([n, e, correct_value_after, k + 1, time.time() - start_time, 1, 0, (objective(x0_new) - objective(sol["x"]))])))
                         fucked_up = True
                         continue
                     print(f'convergence after {k + 1} iterations')
-                    results = np.vstack((results, np.asarray([n, e, k + 1, time.time() - start_time, 1, 1, (objective(x0_new) - objective(sol["x"])) / objective(sol["x"])])))
+                    results = np.vstack((results, np.asarray([n, e, correct_value_after, k + 1, time.time() - start_time, 1, 1, (objective(x0_new) - objective(sol["x"])) / objective(sol["x"])])))
                     break
                 else:
                     x0 = x0_new
-                    v_new = v
-            else:
-                print('convergence not reached!')
-                if np.isclose(objective(x0_new), objective(sol['x']), rtol=1.e-1) or np.allclose(np.rint(x0_new), sol['x']):  # correctness
-                    results = np.vstack((results, np.asarray([n, e, np.NAN, np.NAN, 0, 1, (objective(x0_new) - objective(sol["x"])) / objective(sol["x"])])))
-                else:
-                    results = np.vstack((results, np.asarray([n, e, np.NAN, np.NAN, 0, 0, (objective(x0_new) - objective(sol["x"])) / objective(sol["x"])])))
 
-        with open(f'apgd_beta_{beta}.csv', 'a') as csvfile:
+        with open(f'pgd.csv', 'a') as csvfile:
             np.savetxt(csvfile, results, delimiter=',', fmt='%s', comments='')
