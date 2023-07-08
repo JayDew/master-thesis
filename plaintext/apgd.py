@@ -52,7 +52,7 @@ for exp in experiments:
             # print('OPT:', opt, '---', sol['x'])
             ###################################
 
-            step_size = 0.001
+            step_size = 0.01
             P = np.eye(e) - A.T @ inv(A @ A.T) @ A
             Q = A.T @ inv(A @ A.T) @ b
             x0 = np.ones(e) * 0.5  # initial guess
@@ -75,6 +75,10 @@ for exp in experiments:
             k = 0
             while True:
                 k = k + 1
+
+                if (k % 10 == 0):
+                    step_size = step_size / 2
+
                 if fucked_up:
                     break
                 x0_new = P @ (x0 - step_size * gradient(x0)) + Q

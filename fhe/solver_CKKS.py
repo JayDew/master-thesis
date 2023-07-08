@@ -76,7 +76,7 @@ for exp in experiments:
     Es = exp[1]
     for E in Es:
         results = np.asarray([np.NAN] * 7)
-        for i in range(5):  # repeat each experiment 100 times
+        for i in range(1,6):  # repeat each experiment 100 times
             # generate random graph
             generator = GraphGenerator(N=n, E=E, seed=i)
             e, c, A = generator.generate_random_graph()
@@ -123,12 +123,12 @@ for exp in experiments:
 
 
             v = x0_enc
-            beta = 2  # set beta = 1 for normal PGD
             # start measuring execution
             start_time = time.time()
             points = []
+            convergence = []
 
-            K = 500
+            K = 200
             for k in range(K):
                 # cloud computes projected gradient descent
                 x0_enc_new = _proj(sum_encrypted_vectors(v, gradient(v)))
@@ -136,12 +136,15 @@ for exp in experiments:
                 x0_new_pt = decrypt_vector(x0_enc_new)
                 # clients locally ensures that values are positive
                 x0_new_pt = np.maximum(np.zeros(e), x0_new_pt)
-                # client encrypts result and sends back to cloud
-                x0_enc_new = encrypt_vector(x0_new_pt)
-                # the cloud receives the final result
-                v_new = sum_encrypted_vectors(x0_enc, mul_sc_encrypted_vectors(diff_encrypted_vectors(x0_enc_new, x0_enc), np.ones(e) * beta))
-
                 points.append((x0_new_pt[0], x0_new_pt[1]))
+
+                print(k, objective(x0_new_pt), x0_new_pt)
+                x0_new_pt = x0_new_pt + (x0_new_pt - x0_pt) * (k-1)/(k+2)  # we cannot perform this over palintext... (see paper)
+                # client encrypts result and sends back to cloud
+                v_new = encrypt_vector(x0_new_pt)
+
+                # points.append((x0_new_pt[0], x0_new_pt[1]))
+                convergence.append((objective(x0_new_pt) - objective(sol["x"])) / objective(sol["x"])) #remove this after you plot the graphs
 
                 # print(k, 'OPT:', f'{objective(np.rint(x0_new_pt)):.3f}', '---', np.rint(x0_new_pt))
                 if np.allclose(x0_pt, x0_new_pt):  # convergence
@@ -165,5 +168,5 @@ for exp in experiments:
                 else:
                     results = np.vstack((results, np.asarray([n, e, k, time.time() - start_time, 0, 0, (objective(x0_new_pt) - objective(sol["x"]))])))
 
-            with open(f'../experiments/fhe/CKKS.csv', 'a') as csvfile:
+            with open(f'../experiments/final/exp2/CKKS.csv', 'a') as csvfile:
                 np.savetxt(csvfile, results, delimiter=',', fmt='%s', comments='')

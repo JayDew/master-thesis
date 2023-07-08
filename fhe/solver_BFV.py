@@ -172,5 +172,5 @@ for exp in experiments:
                 else:
                     results = np.vstack((results, np.asarray([n, e, np.NAN, np.NAN, 0, 0, (objective(x0_new_pt) - objective(sol["x"])) / objective(sol["x"])])))
 
-            with open(f'BFV.csv', 'a') as csvfile:
+            with open(f'../experiments/final/exp2/BFV.csv', 'a') as csvfile:
                 np.savetxt(csvfile, results, delimiter=',', fmt='%s', comments='')

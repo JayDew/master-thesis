@@ -95,7 +95,7 @@ for exp in experiments:
     Es = exp[1]
     for E in Es:
         results = np.asarray([np.NAN] * 8)
-        for i in range(10):  # repeat each experiment 10 times
+        for i in range(1,6):  # repeat each experiment 10 times
             # generate random graph
             generator = GraphGenerator(N=n, E=E, seed=i)
             e, c, A = generator.generate_random_graph()
@@ -104,6 +104,11 @@ for exp in experiments:
             s = longest_shortest_path[0]  # starting node
             t = longest_shortest_path[-1]  # terminal node
             b = get_b_vector(n, s, t)
+            # A = np.asarray([[1, 1], [-1, -1]])
+            # b = np.asarray([1, -1])
+            # c = np.asarray([1, 2])
+            # e = 2
+
             #################################
             # Exact solution using plaintext
             sol = linprog(c, A_eq=A, b_eq=b)
@@ -132,12 +137,13 @@ for exp in experiments:
             def gradient(x):
                 return c_minus_enc
 
-
+            v = x0_enc
             correct_value_after = 0
             correct_found = False
-
+            convergence = []
             # start measuring execution
             start_time = time.time()
+            points = []
 
             k = 0
             while True:
@@ -145,20 +151,23 @@ for exp in experiments:
                 print(k)
 
                 # cloud computes projected gradient descent
-                x0_enc_new = _proj(sum_encrypted_vectors(x0_enc, gradient(x0_enc)))
+                x0_enc_new = _proj(sum_encrypted_vectors(v, gradient(v)))
                 # cloud sends back result to client for comparison
                 x0_new_pt = retrieve_fp_vector(retrieve_fp_vector(decrypt_vector(x0_enc_new)))
                 # clients locally ensures that values are positive
                 x0_new_pt = np.maximum(np.zeros(e), x0_new_pt)
-                x0_new_pt = x0_new_pt + (x0_new_pt - x0_pt) * (k-1)/(k+2)  # we cannot perform this over palintext... (see paper)
+                print(objective(x0_new_pt), x0_new_pt)
+                v_new_dec = x0_new_pt + (x0_new_pt - x0_pt) * (k-1)/(k+2)  # we cannot perform this over palintext... (see paper)
                 # client encrypts result and sends back to cloud
-                x0_enc_new = encrypt_vector(fp_vector(x0_new_pt))
+                v_new = encrypt_vector(fp_vector(v_new_dec))
 
                 # correctness without convergence
                 if np.allclose(np.rint(x0_new_pt), sol['x']) and not correct_found:
                     correct_found = True
                     correct_value_after = k
 
+                points.append((x0_new_pt[0], x0_new_pt[1]))
+                convergence.append((objective(x0_new_pt) - objective(sol["x"])) / objective(sol["x"])) #remove this after you plot the graphs
 
                 if np.allclose(x0_pt, x0_new_pt): #convergence
                     if not (np.isclose(objective(x0_new_pt), objective(sol['x']), rtol=1.e-1) or np.allclose(np.rint(x0_new_pt), sol['x'])):  #correctness
@@ -168,10 +177,13 @@ for exp in experiments:
                     print(f'convergence after {k + 1} iterations')
                     results = np.vstack((results, np.asarray([n, e, correct_value_after, k+1, time.time() - start_time, 1, 1, (objective(x0_new_pt) - objective(sol["x"])) / objective(sol["x"])])))
                     print(f'{e}:convergence after {k + 1} iterations')
+                    with open(f'../experiments/final/exp2/BFV.csv', 'a') as csvfile:
+                        np.savetxt(csvfile, results, delimiter=',', fmt='%s', comments='')
+
                     break
                 else:
                     x0_pt = x0_new_pt
                     x0_enc = x0_enc_new
+                    v = v_new
 
-                with open(f'BFV.csv', 'a') as csvfile:
-                    np.savetxt(csvfile, results, delimiter=',', fmt='%s', comments='')
+

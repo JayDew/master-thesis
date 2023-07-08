@@ -19,11 +19,11 @@ def get_b_vector(N, s, t):
 
 
 experiments = [
-    (5, [20]),
-    (8, [56]),
+    # (5, [20]),
+    # (8, [56]),
     (10, [90]),
-    (16, [210]),
-    (20, [380])
+    # (16, [210]),
+    # (20, [380])
 ]
 
 for exp in experiments:
@@ -41,10 +41,10 @@ for exp in experiments:
             t = longest_shortest_path[-1]  # terminal node
             b = get_b_vector(n, s, t)
             # generator.save_graph_image(s, t) # save png
-            # A = np.asarray([[1, 1], [-1, -1]])
+            # A = np.asarray([[1, 1, 1], [-1, -1, -1]])
             # b = np.asarray([1, -1])
-            # c = np.asarray([1, 2])
-            # e = 2
+            # c = np.asarray([1, 2, 3])
+            # e = 3
             #################################
             # Exact solution using plaintext
             sol = linprog(c, A_eq=A, b_eq=b)
@@ -85,6 +85,7 @@ for exp in experiments:
                     break
                 x0_new = P @ (y - step_size * gradient(y)) + Q
                 x0_new = np.maximum(np.zeros(e), x0_new)
+                print(k, objective(x0_new), x0_new, )
                 y_new = x0_new + (k-1)/(k+2) * (x0_new - x0)
 
 

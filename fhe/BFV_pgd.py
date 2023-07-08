@@ -172,5 +172,5 @@ for exp in experiments:
                     x0_pt = x0_new_pt
                     x0_enc = x0_enc_new
 
-            with open(f'BFV.csv', 'a') as csvfile:
+            with open(f'../experiments/final/exp2/BFV.csv', 'a') as csvfile:
                 np.savetxt(csvfile, results, delimiter=',', fmt='%s', comments='')
