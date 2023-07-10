@@ -18,8 +18,8 @@ def get_b_vector(N, s, t):
 
 
 experiments = [
-    # (5, [20]),
-    # (8, [56]),
+    (5, [20]),
+    (8, [56]),
     (10, [90]),
     (16, [210]),
     (20, [380])
@@ -34,7 +34,7 @@ for exp in experiments:
             # generate random graph
             generator = GraphGenerator(N=n, E=E, seed=i)
             e, c, A = generator.generate_random_graph()
-            c_normal = c
+            # c_normal = c
             # c = c / np.linalg.norm(c) #normalize cost vector
             longest_shortest_path = generator.get_longest_path() #get the longest shortest path
             s = longest_shortest_path[0]  # starting node
@@ -52,7 +52,7 @@ for exp in experiments:
             # print('OPT:', opt, '---', sol['x'])
             ###################################
 
-            step_size = 0.01
+            step_size = 0.001
             P = np.eye(e) - A.T @ inv(A @ A.T) @ A
             Q = A.T @ inv(A @ A.T) @ b
             x0 = np.ones(e) * 0.5  # initial guess
@@ -76,8 +76,8 @@ for exp in experiments:
             while True:
                 k = k + 1
 
-                if (k % 10 == 0):
-                    step_size = step_size / 2
+                # if (k % 10 == 0):
+                #     step_size = step_size / 2
 
                 if fucked_up:
                     break
